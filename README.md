@@ -214,6 +214,61 @@ task lint
 task deps
 ```
 
+## Running as an MCP Server with ToolHive
+
+MKP can be run as a Model Context Protocol (MCP) server using [ToolHive](https://github.com/StacklokLabs/toolhive), which simplifies the deployment and management of MCP servers.
+
+### Prerequisites
+
+1. Install ToolHive by following the [installation instructions](https://github.com/StacklokLabs/toolhive#installation).
+2. Ensure you have Docker or Podman installed on your system.
+3. Configure your Kubernetes credentials (kubeconfig) for the cluster you want to interact with.
+
+### Running MKP with ToolHive
+
+To run MKP as an MCP server using ToolHive:
+
+```bash
+# Run the MKP server using the published container image
+thv run --name mkp --transport sse --volume $HOME/.kube:/home/nonroot/.kube:ro ghcr.io/stackloklabs/mkp:latest
+```
+
+This command:
+- Names the server instance "mkp"
+- Uses the SSE transport protocol
+- Mounts your local kubeconfig into the container (read-only)
+- Uses the latest published MKP image from GitHub Container Registry
+
+To use a specific version instead of the latest:
+
+```bash
+thv run --name mkp --transport sse --volume $HOME/.kube:/home/nonroot/.kube:ro ghcr.io/stackloklabs/mkp:v0.0.1
+```
+
+### Verifying the MKP Server is Running
+
+To verify that the MKP server is running:
+
+```bash
+thv list
+```
+
+This will show all running MCP servers managed by ToolHive, including the MKP server.
+
+### Stopping the MKP Server
+
+To stop the MKP server:
+
+```bash
+thv stop mkp
+```
+
+To remove the server instance completely:
+
+```bash
+thv rm mkp
+```
+
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
