@@ -7,6 +7,7 @@ MKP is a Model Context Protocol (MCP) server for Kubernetes that allows LLM-powe
 - List resources supported by the Kubernetes API server
 - List clustered resources
 - List namespaced resources
+- Get resources and their subresources (including status, scale, logs, etc.)
 - Apply (create or update) clustered resources
 - Apply (create or update) namespaced resources
 - Generic and pluggable implementation using API Machinery's unstructured client
@@ -91,6 +92,36 @@ KUBECONFIG=/path/to/kubeconfig task run-with-kubeconfig
 ### MCP Tools
 
 The MKP server provides the following MCP tools:
+
+#### get_resource
+
+Get a Kubernetes resource or its subresource.
+
+Parameters:
+- `resource_type` (required): Type of resource to get (clustered or namespaced)
+- `group`: API group (e.g., apps, networking.k8s.io)
+- `version` (required): API version (e.g., v1, v1beta1)
+- `resource` (required): Resource name (e.g., deployments, services)
+- `namespace`: Namespace (required for namespaced resources)
+- `name` (required): Name of the resource to get
+- `subresource`: Subresource to get (e.g., status, scale, logs)
+
+Example:
+
+```json
+{
+  "name": "get_resource",
+  "arguments": {
+    "resource_type": "namespaced",
+    "group": "apps",
+    "version": "v1",
+    "resource": "deployments",
+    "namespace": "default",
+    "name": "nginx-deployment",
+    "subresource": "status"
+  }
+}
+```
 
 #### list_resources
 
