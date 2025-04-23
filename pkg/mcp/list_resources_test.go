@@ -444,7 +444,7 @@ func TestHandleListAllResourcesError(t *testing.T) {
 	
 	// Create a fake discovery client that returns an error
 	fakeDiscoveryClient := &discoveryfake.FakeDiscovery{Fake: &ktesting.Fake{}}
-	fakeDiscoveryClient.Fake.AddReactor("*", "*", func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
+	fakeDiscoveryClient.AddReactor("*", "*", func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, nil, fmt.Errorf("failed to list API resources")
 	})
 	
