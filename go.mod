@@ -3,7 +3,7 @@ module github.com/StacklokLabs/mkp
 go 1.24.2
 
 require (
-	github.com/mark3labs/mcp-go v0.23.0
+	github.com/mark3labs/mcp-go v0.23.1
 	github.com/stretchr/testify v1.10.0
 	k8s.io/apimachinery v0.32.4
 	k8s.io/client-go v0.32.3
