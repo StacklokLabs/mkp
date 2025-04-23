@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/StacklokLabs/mkp/pkg/k8s"
 	"github.com/StacklokLabs/mkp/pkg/mcp"
@@ -40,19 +41,62 @@ func main() {
 	// Create MCP server using the helper function
 	mcpServer := mcp.CreateServer(k8sClient)
 
-	// Create and start SSE server
+	// Create SSE server
 	sseServer := mcp.CreateSSEServer(mcpServer)
-	log.Printf("Starting MCP server on %s", *addr)
-	if err := sseServer.Start(*addr); err != nil {
-		log.Fatalf("Server error: %v", err)
+	
+	// Channel to receive server errors
+	serverErrCh := make(chan error, 1)
+	
+	// Start the server in a goroutine
+	go func() {
+		log.Printf("Starting MCP server on %s", *addr)
+		if err := sseServer.Start(*addr); err != nil {
+			log.Printf("Server error: %v", err)
+			serverErrCh <- err
+		}
+	}()
+	
+	// Wait for either a server error or a shutdown signal
+	select {
+	case err := <-serverErrCh:
+		log.Fatalf("Server failed to start: %v", err)
+	case <-ctx.Done():
+		log.Println("Shutting down server...")
 	}
-
-	// Wait for shutdown signal
-	<-ctx.Done()
-	log.Println("Shutting down server...")
-	if err := sseServer.Shutdown(context.Background()); err != nil {
-		log.Fatalf("Server shutdown error: %v", err)
+	
+	// Create a context with timeout for shutdown
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer shutdownCancel()
+	
+	// Attempt to shut down the server gracefully
+	shutdownCh := make(chan error, 1)
+	go func() {
+		log.Println("Initiating server shutdown...")
+		err := sseServer.Shutdown(shutdownCtx)
+		if err != nil {
+			log.Printf("Error during shutdown: %v", err)
+		}
+		shutdownCh <- err
+		close(shutdownCh)
+	}()
+	
+	// Wait for shutdown to complete or timeout
+	select {
+	case err, ok := <-shutdownCh:
+		if ok {
+			if err != nil {
+				log.Printf("Server shutdown error: %v", err)
+			} else {
+				log.Println("Server shutdown completed gracefully")
+			}
+		}
+	case <-shutdownCtx.Done():
+		log.Println("Server shutdown timed out, forcing exit...")
+		// Force exit after timeout
+		os.Exit(1)
 	}
-
-	log.Println("Server shutdown complete")
+	
+	log.Println("Server shutdown complete, exiting...")
+	// Ensure we exit the program
+	os.Exit(0)
 }
