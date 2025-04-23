@@ -25,6 +25,7 @@ func CreateServer(k8sClient *k8s.Client) *server.MCPServer {
 	// Add tools
 	mcpServer.AddTool(NewListResourcesTool(), impl.HandleListResources)
 	mcpServer.AddTool(NewApplyResourceTool(), impl.HandleApplyResource)
+	mcpServer.AddTool(NewGetResourceTool(), impl.HandleGetResource)
 
 	// Add resource templates
 	mcpServer.AddResourceTemplate(
