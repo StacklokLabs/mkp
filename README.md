@@ -230,7 +230,7 @@ To run MKP as an MCP server using ToolHive:
 
 ```bash
 # Run the MKP server using the published container image
-thv run --name mkp --transport sse --volume $HOME/.kube:/home/nonroot/.kube:ro ghcr.io/stackloklabs/mkp:latest
+thv run --name mkp --transport sse --volume $HOME/.kube:/home/nonroot/.kube:ro ghcr.io/stackloklabs/mkp/server:latest
 ```
 
 This command:
@@ -242,7 +242,7 @@ This command:
 To use a specific version instead of the latest:
 
 ```bash
-thv run --name mkp --transport sse --volume $HOME/.kube:/home/nonroot/.kube:ro ghcr.io/stackloklabs/mkp:v0.0.1
+thv run --name mkp --transport sse --volume $HOME/.kube:/home/nonroot/.kube:ro ghcr.io/stackloklabs/mkp/server:v0.0.1
 ```
 
 ### Verifying the MKP Server is Running
