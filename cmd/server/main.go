@@ -10,7 +10,6 @@ import (
 
 	"github.com/StacklokLabs/mkp/pkg/k8s"
 	"github.com/StacklokLabs/mkp/pkg/mcp"
-	"github.com/mark3labs/mcp-go/server"
 )
 
 func main() {
@@ -38,30 +37,8 @@ func main() {
 		log.Fatalf("Failed to create Kubernetes client: %v", err)
 	}
 
-	// Create MCP implementation
-	impl := mcp.NewImplementation(k8sClient)
-
-	// Create MCP server
-	mcpServer := server.NewMCPServer(
-		"kubernetes-mcp-server",
-		"0.1.0",
-		server.WithResourceCapabilities(true, true),
-		server.WithToolCapabilities(true),
-	)
-
-	// Add tools
-	mcpServer.AddTool(mcp.NewListResourcesTool(), impl.HandleListResources)
-	mcpServer.AddTool(mcp.NewApplyResourceTool(), impl.HandleApplyResource)
-
-	// Add resource templates
-	mcpServer.AddResourceTemplate(
-		mcp.NewClusteredResourceTemplate(),
-		impl.HandleClusteredResource,
-	)
-	mcpServer.AddResourceTemplate(
-		mcp.NewNamespacedResourceTemplate(),
-		impl.HandleNamespacedResource,
-	)
+	// Create MCP server using the helper function
+	mcpServer := mcp.CreateServer(k8sClient)
 
 	// Create and start SSE server
 	sseServer := mcp.CreateSSEServer(mcpServer)
