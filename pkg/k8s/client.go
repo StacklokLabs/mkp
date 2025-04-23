@@ -10,15 +10,21 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 )
 
+// PodLogsFunc is a function type for getting pod logs
+type PodLogsFunc func(ctx context.Context, namespace, name string) (*unstructured.Unstructured, error)
+
 // Client represents a Kubernetes client with discovery and dynamic capabilities
 type Client struct {
 	discoveryClient discovery.DiscoveryInterface
 	dynamicClient   dynamic.Interface
+	clientset       kubernetes.Interface
+	getPodLogs      PodLogsFunc
 }
 
 // NewClient creates a new Kubernetes client
@@ -40,10 +46,22 @@ func NewClient(kubeconfigPath string) (*Client, error) {
 		return nil, fmt.Errorf("failed to create dynamic client: %w", err)
 	}
 
-	return &Client{
+	// Create clientset for typed API access
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create clientset: %w", err)
+	}
+
+	client := &Client{
 		discoveryClient: discoveryClient,
 		dynamicClient:   dynamicClient,
-	}, nil
+		clientset:       clientset,
+	}
+	
+	// Set the default implementation for getPodLogs
+	client.getPodLogs = client.defaultGetPodLogs
+	
+	return client, nil
 }
 
 // getConfig returns a Kubernetes client configuration
@@ -139,7 +157,13 @@ func (c *Client) SetDiscoveryClient(discoveryClient discovery.DiscoveryInterface
 	c.discoveryClient = discoveryClient
 }
 
+// SetClientset sets the clientset (for testing purposes)
+func (c *Client) SetClientset(clientset kubernetes.Interface) {
+	// Store the interface directly, we'll use it through the interface methods
+	c.clientset = clientset
+}
+
 // IsReady returns true if the client is ready to use
 func (c *Client) IsReady() bool {
-	return c.discoveryClient != nil && c.dynamicClient != nil
+	return c.discoveryClient != nil && c.dynamicClient != nil && c.clientset != nil
 }

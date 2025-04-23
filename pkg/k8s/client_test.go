@@ -11,7 +11,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	discoveryfake "k8s.io/client-go/discovery/fake"
-	"k8s.io/client-go/dynamic/fake"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
+	kubefake "k8s.io/client-go/kubernetes/fake"
 	ktesting "k8s.io/client-go/testing"
 )
 
@@ -24,7 +25,7 @@ func TestListClusteredResources(t *testing.T) {
 		{Group: "rbac.authorization.k8s.io", Version: "v1", Resource: "clusterroles"}: "ClusterRoleList",
 	}
 	
-	client := fake.NewSimpleDynamicClientWithCustomListKinds(scheme, listKinds)
+	client := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, listKinds)
 
 	// Create a test client with the fake dynamic client
 	testClient := &Client{
@@ -84,7 +85,7 @@ func TestListNamespacedResources(t *testing.T) {
 		{Group: "", Version: "v1", Resource: "services"}: "ServiceList",
 	}
 	
-	client := fake.NewSimpleDynamicClientWithCustomListKinds(scheme, listKinds)
+	client := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, listKinds)
 
 	// Create a test client with the fake dynamic client
 	testClient := &Client{
@@ -140,7 +141,7 @@ func TestListNamespacedResources(t *testing.T) {
 func TestApplyClusteredResource(t *testing.T) {
 	// Create a fake dynamic client
 	scheme := runtime.NewScheme()
-	client := fake.NewSimpleDynamicClient(scheme)
+	client := dynamicfake.NewSimpleDynamicClient(scheme)
 
 	// Create a test client with the fake dynamic client
 	testClient := &Client{
@@ -196,7 +197,7 @@ func TestApplyClusteredResource(t *testing.T) {
 func TestApplyNamespacedResource(t *testing.T) {
 	// Create a fake dynamic client
 	scheme := runtime.NewScheme()
-	client := fake.NewSimpleDynamicClient(scheme)
+	client := dynamicfake.NewSimpleDynamicClient(scheme)
 
 	// Create a test client with the fake dynamic client
 	testClient := &Client{
@@ -254,7 +255,7 @@ func TestApplyNamespacedResource(t *testing.T) {
 func TestGetClusteredResource(t *testing.T) {
 	// Create a fake dynamic client
 	scheme := runtime.NewScheme()
-	client := fake.NewSimpleDynamicClient(scheme)
+	client := dynamicfake.NewSimpleDynamicClient(scheme)
 
 	// Create a test client with the fake dynamic client
 	testClient := &Client{
@@ -307,7 +308,7 @@ func TestGetClusteredResource(t *testing.T) {
 func TestGetNamespacedResource(t *testing.T) {
 	// Create a fake dynamic client
 	scheme := runtime.NewScheme()
-	client := fake.NewSimpleDynamicClient(scheme)
+	client := dynamicfake.NewSimpleDynamicClient(scheme)
 
 	// Create a test client with the fake dynamic client
 	testClient := &Client{
@@ -365,7 +366,7 @@ func TestSetDynamicClient(t *testing.T) {
 	
 	// Create a fake dynamic client
 	scheme := runtime.NewScheme()
-	fakeDynamicClient := fake.NewSimpleDynamicClient(scheme)
+	fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme)
 	
 	// Set the dynamic client
 	testClient.SetDynamicClient(fakeDynamicClient)
@@ -389,28 +390,35 @@ func TestSetDiscoveryClient(t *testing.T) {
 }
 
 func TestIsReady(t *testing.T) {
-	// Test with both clients nil
+	// Test with all clients nil
 	testClient := &Client{}
-	assert.False(t, testClient.IsReady(), "Expected IsReady to return false when both clients are nil")
+	assert.False(t, testClient.IsReady(), "Expected IsReady to return false when all clients are nil")
 	
 	// Test with only dynamic client set
 	testClient = &Client{}
 	scheme := runtime.NewScheme()
-	fakeDynamicClient := fake.NewSimpleDynamicClient(scheme)
+	fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme)
 	testClient.SetDynamicClient(fakeDynamicClient)
-	assert.False(t, testClient.IsReady(), "Expected IsReady to return false when discovery client is nil")
+	assert.False(t, testClient.IsReady(), "Expected IsReady to return false when some clients are nil")
 	
 	// Test with only discovery client set
 	testClient = &Client{}
 	fakeDiscoveryClient := &discoveryfake.FakeDiscovery{Fake: &ktesting.Fake{}}
 	testClient.SetDiscoveryClient(fakeDiscoveryClient)
-	assert.False(t, testClient.IsReady(), "Expected IsReady to return false when dynamic client is nil")
+	assert.False(t, testClient.IsReady(), "Expected IsReady to return false when some clients are nil")
 	
-	// Test with both clients set
+	// Test with only clientset set
+	testClient = &Client{}
+	fakeClientset := kubefake.NewSimpleClientset()
+	testClient.SetClientset(fakeClientset)
+	assert.False(t, testClient.IsReady(), "Expected IsReady to return false when some clients are nil")
+	
+	// Test with all clients set
 	testClient = &Client{}
 	testClient.SetDynamicClient(fakeDynamicClient)
 	testClient.SetDiscoveryClient(fakeDiscoveryClient)
-	assert.True(t, testClient.IsReady(), "Expected IsReady to return true when both clients are set")
+	testClient.SetClientset(fakeClientset)
+	assert.True(t, testClient.IsReady(), "Expected IsReady to return true when all clients are set")
 }
 
 func TestListAPIResources(t *testing.T) {

@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
+	kubefake "k8s.io/client-go/kubernetes/fake"
 )
 
 func TestGetResource(t *testing.T) {
@@ -60,6 +61,36 @@ func TestGetResource(t *testing.T) {
 	client := &Client{}
 	client.SetDynamicClient(fakeDynamic)
 	
+	// Create a fake clientset for pod logs test
+	fakeClientset := kubefake.NewSimpleClientset()
+	client.SetClientset(fakeClientset)
+
+	// Mock the getPodLogs method
+	getPodLogsMock := func(ctx context.Context, namespace, name string) (*unstructured.Unstructured, error) {
+		return &unstructured.Unstructured{
+			Object: map[string]interface{}{
+				"apiVersion": "v1",
+				"kind":       "Pod",
+				"metadata": map[string]interface{}{
+					"name":      name,
+					"namespace": namespace,
+				},
+				"logs": "test log content",
+			},
+		}, nil
+	}
+	
+	// Store the original implementation
+	originalGetPodLogs := client.getPodLogs
+	
+	// Replace with our mock
+	client.getPodLogs = getPodLogsMock
+	
+	// Restore the original after the test
+	defer func() {
+		client.getPodLogs = originalGetPodLogs
+	}()
+
 	// Test cases
 	testCases := []struct {
 		name         string
@@ -68,6 +99,8 @@ func TestGetResource(t *testing.T) {
 		subresource  string
 		expectError  bool
 		errorMsg     string
+		gvr          schema.GroupVersionResource
+		checkLogs    bool
 	}{
 		{
 			name:         "Get clustered resource",
@@ -75,6 +108,7 @@ func TestGetResource(t *testing.T) {
 			resourceName: "test-deployment",
 			subresource:  "",
 			expectError:  false,
+			gvr:          deploymentGVR,
 		},
 		{
 			name:         "Get namespaced resource",
@@ -82,6 +116,7 @@ func TestGetResource(t *testing.T) {
 			resourceName: "test-deployment",
 			subresource:  "",
 			expectError:  false,
+			gvr:          deploymentGVR,
 		},
 		{
 			name:         "Empty resource name",
@@ -90,6 +125,16 @@ func TestGetResource(t *testing.T) {
 			subresource:  "",
 			expectError:  true,
 			errorMsg:     "resource name cannot be empty",
+			gvr:          deploymentGVR,
+		},
+		{
+			name:         "Get pod logs",
+			namespace:    "default",
+			resourceName: "test-pod",
+			subresource:  "logs",
+			expectError:  false,
+			gvr:          schema.GroupVersionResource{Group: "", Version: "v1", Resource: "pods"},
+			checkLogs:    true,
 		},
 	}
 	
@@ -98,7 +143,7 @@ func TestGetResource(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Call the method
 			ctx := context.Background()
-			result, err := client.GetResource(ctx, deploymentGVR, tc.namespace, tc.resourceName, tc.subresource)
+			result, err := client.GetResource(ctx, tc.gvr, tc.namespace, tc.resourceName, tc.subresource)
 			
 			// Assert expectations
 			if tc.expectError {
@@ -117,6 +162,14 @@ func TestGetResource(t *testing.T) {
 				if tc.namespace != "" {
 					assert.Equal(t, tc.namespace, result.GetNamespace())
 				}
+				
+				// Check for logs if this is a pod logs test
+				if tc.checkLogs {
+					logs, found, err := unstructured.NestedString(result.Object, "logs")
+					assert.NoError(t, err)
+					assert.True(t, found)
+					assert.Equal(t, "test log content", logs)
+				}
 			}
 		})
 	}
@@ -124,4 +177,44 @@ func TestGetResource(t *testing.T) {
 	// Note: The fake client doesn't fully support subresources in the same way as the real client,
 	// so we're not testing subresource functionality here. In a real environment, the subresource
 	// parameter would be passed to the Get method and the appropriate subresource would be returned.
+}
+
+func TestGetPodLogs(t *testing.T) {
+	// Create a test client
+	client := &Client{}
+	
+	// Create a mock implementation of getPodLogs
+	mockGetPodLogs := func(ctx context.Context, namespace, name string) (*unstructured.Unstructured, error) {
+		return &unstructured.Unstructured{
+			Object: map[string]interface{}{
+				"apiVersion": "v1",
+				"kind":       "Pod",
+				"metadata": map[string]interface{}{
+					"name":      name,
+					"namespace": namespace,
+				},
+				"logs": "test log output",
+			},
+		}, nil
+	}
+	
+	// Set the mock implementation
+	client.getPodLogs = mockGetPodLogs
+	
+	// Call the method through the GetResource method
+	ctx := context.Background()
+	podGVR := schema.GroupVersionResource{Group: "", Version: "v1", Resource: "pods"}
+	result, err := client.GetResource(ctx, podGVR, "default", "test-pod", "logs")
+	
+	// Assert expectations
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, "test-pod", result.GetName())
+	assert.Equal(t, "default", result.GetNamespace())
+	
+	// Verify the logs field
+	logs, found, err := unstructured.NestedString(result.Object, "logs")
+	assert.NoError(t, err)
+	assert.True(t, found)
+	assert.Equal(t, "test log output", logs)
 }
