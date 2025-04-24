@@ -17,6 +17,7 @@ func main() {
 	// Parse command line flags
 	kubeconfig := flag.String("kubeconfig", "", "Path to kubeconfig file. If not provided, in-cluster config will be used")
 	addr := flag.String("addr", ":8080", "Address to listen on")
+	serveResources := flag.Bool("serve-resources", true, "Whether to serve cluster resources as MCP resources. Setting to false can reduce context size for LLMs when working with large clusters")
 	flag.Parse()
 
 	// Create a context that can be cancelled
@@ -38,8 +39,13 @@ func main() {
 		log.Fatalf("Failed to create Kubernetes client: %v", err)
 	}
 
+	// Create MCP server config
+	config := &mcp.Config{
+		ServeResources: *serveResources,
+	}
+
 	// Create MCP server using the helper function
-	mcpServer := mcp.CreateServer(k8sClient)
+	mcpServer := mcp.CreateServer(k8sClient, config)
 
 	// Create SSE server
 	sseServer := mcp.CreateSSEServer(mcpServer)

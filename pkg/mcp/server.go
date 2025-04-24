@@ -9,8 +9,26 @@ import (
 	"github.com/StacklokLabs/mkp/pkg/k8s"
 )
 
+// Config holds configuration options for the MCP server
+type Config struct {
+	// ServeResources determines whether to serve cluster resources
+	// Setting this to false can reduce context size for LLMs when working with large clusters
+	ServeResources bool
+}
+
+// DefaultConfig returns a Config with default values
+func DefaultConfig() *Config {
+	return &Config{
+		ServeResources: true, // Default to serving resources for backward compatibility
+	}
+}
+
 // CreateServer creates a new MCP server for Kubernetes
-func CreateServer(k8sClient *k8s.Client) *server.MCPServer {
+func CreateServer(k8sClient *k8s.Client, config *Config) *server.MCPServer {
+	// Use default config if none provided
+	if config == nil {
+		config = DefaultConfig()
+	}
 	// Create MCP implementation
 	impl := NewImplementation(k8sClient)
 
@@ -37,20 +55,22 @@ func CreateServer(k8sClient *k8s.Client) *server.MCPServer {
 		impl.HandleNamespacedResource,
 	)
 
-	// Add resources
-	go func() {
-		// List resources in a goroutine to avoid blocking server startup
-		resources, err := impl.HandleListAllResources(context.Background())
-		if err != nil {
-			log.Printf("Failed to list resources: %v", err)
-			return
-		}
+	// Add resources if enabled
+	if config.ServeResources {
+		go func() {
+			// List resources in a goroutine to avoid blocking server startup
+			resources, err := impl.HandleListAllResources(context.Background())
+			if err != nil {
+				log.Printf("Failed to list resources: %v", err)
+				return
+			}
 
-		// Add resources to the server
-		for _, resource := range resources {
-			mcpServer.AddResource(resource, nil)
-		}
-	}()
+			// Add resources to the server
+			for _, resource := range resources {
+				mcpServer.AddResource(resource, nil)
+			}
+		}()
+	}
 
 	return mcpServer
 }

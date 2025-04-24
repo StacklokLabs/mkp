@@ -44,8 +44,8 @@ func TestCreateSSEServer(t *testing.T) {
 	// Set the dynamic client
 	mockClient.SetDynamicClient(fakeDynamicClient)
 
-	// Create an MCP server
-	mcpServer := CreateServer(mockClient)
+	// Create an MCP server with default config
+	mcpServer := CreateServer(mockClient, nil)
 
 	assert.NotNil(t, mcpServer, "MCP server should not be nil")
 
