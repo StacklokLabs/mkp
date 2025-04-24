@@ -36,6 +36,7 @@ tasks:
     desc: Format the code
     cmds:
       - go fmt ./...
+      - golangci-lint run --fix
 
   lint:
     desc: Lint the code
