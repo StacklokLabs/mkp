@@ -219,6 +219,22 @@ The MKP server provides access to Kubernetes resources through MCP resources. Th
 - Clustered resources: `k8s://clustered/{group}/{version}/{resource}/{name}`
 - Namespaced resources: `k8s://namespaced/{namespace}/{group}/{version}/{resource}/{name}`
 
+### Controlling Resource Discovery
+
+By default, MKP serves all Kubernetes resources as MCP resources, which provides useful context for LLMs. However, in large clusters with many resources, this can consume significant context space in the LLM.
+
+You can disable this behavior by using the `--serve-resources` flag:
+
+```bash
+# Run without serving cluster resources
+./build/mkp-server --serve-resources=false
+
+# Run with a specific kubeconfig without serving cluster resources
+./build/mkp-server --kubeconfig=/path/to/kubeconfig --serve-resources=false
+```
+
+Even with resource discovery disabled, the MCP tools (`get_resource`, `list_resources`, and `apply_resource`) remain fully functional, allowing you to interact with your Kubernetes cluster.
+
 ## Development
 
 ### Running tests
