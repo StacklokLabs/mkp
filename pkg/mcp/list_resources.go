@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/mark3labs/mcp-go/mcp"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -57,8 +58,47 @@ func (m *Implementation) HandleListResources(ctx context.Context, request mcp.Ca
 		return mcp.NewToolResultErrorFromErr("Failed to list resources", err), nil
 	}
 
+	// Convert to PartialObjectMetadataList
+	metadataList := &metav1.PartialObjectMetadataList{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "PartialObjectMetadataList",
+			APIVersion: "meta.k8s.io/v1",
+		},
+		ListMeta: metav1.ListMeta{
+			ResourceVersion: list.GetResourceVersion(),
+		},
+		Items: make([]metav1.PartialObjectMetadata, 0, len(list.Items)),
+	}
+
+	// Extract metadata from each resource
+	for _, item := range list.Items {
+		// Get annotations and filter out the last-applied-configuration annotation
+		annotations := item.GetAnnotations()
+		if annotations != nil {
+			delete(annotations, "kubectl.kubernetes.io/last-applied-configuration")
+		}
+
+		metadata := metav1.PartialObjectMetadata{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       item.GetKind(),
+				APIVersion: item.GetAPIVersion(),
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              item.GetName(),
+				Namespace:         item.GetNamespace(),
+				Labels:            item.GetLabels(),
+				Annotations:       annotations,
+				ResourceVersion:   item.GetResourceVersion(),
+				UID:               item.GetUID(),
+				CreationTimestamp: item.GetCreationTimestamp(),
+			},
+		}
+
+		metadataList.Items = append(metadataList.Items, metadata)
+	}
+
 	// Convert to JSON
-	result, err := json.Marshal(list)
+	result, err := json.Marshal(metadataList)
 	if err != nil {
 		return mcp.NewToolResultErrorFromErr("Failed to marshal result", err), nil
 	}
