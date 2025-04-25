@@ -1,5 +1,9 @@
 # MKP - Model Kontext Protocol Server for Kubernetes
 
+<p align="center">
+  <img src="docs/assets/mkp-logo.png" width="400" alt="MKP Logo">
+</p>
+
 MKP is a Model Context Protocol (MCP) server for Kubernetes that allows LLM-powered applications to interact with Kubernetes clusters. It provides tools for listing and applying Kubernetes resources through the MCP protocol.
 
 ## Features
