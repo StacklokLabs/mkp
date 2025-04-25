@@ -3,6 +3,7 @@ package mcp
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -18,6 +19,21 @@ func (m *Implementation) HandleGetResource(ctx context.Context, request mcp.Call
 	namespace := mcp.ParseString(request, "namespace", "")
 	name := mcp.ParseString(request, "name", "")
 	subresource := mcp.ParseString(request, "subresource", "")
+	
+	// Parse parameters for subresources
+	var parameters map[string]string
+	if paramsRaw, exists := request.Params.Arguments["parameters"]; exists && paramsRaw != nil {
+		if paramsMap, ok := paramsRaw.(map[string]interface{}); ok {
+			parameters = make(map[string]string)
+			for k, v := range paramsMap {
+				if strVal, ok := v.(string); ok {
+					parameters[k] = strVal
+				} else {
+					parameters[k] = fmt.Sprintf("%v", v)
+				}
+			}
+		}
+	}
 
 	// Validate parameters
 	if resourceType == "" {
@@ -49,7 +65,7 @@ func (m *Implementation) HandleGetResource(ctx context.Context, request mcp.Call
 	}
 
 	// Get resource
-	result, err := m.k8sClient.GetResource(ctx, gvr, namespace, name, subresource)
+	result, err := m.k8sClient.GetResource(ctx, gvr, namespace, name, subresource, parameters)
 	if err != nil {
 		return mcp.NewToolResultErrorFromErr("Failed to get resource", err), nil
 	}
@@ -85,5 +101,7 @@ func NewGetResourceTool() mcp.Tool {
 			mcp.Required()),
 		mcp.WithString("subresource",
 			mcp.Description("Subresource to get (e.g., status, scale, logs)")),
+		mcp.WithObject("parameters",
+			mcp.Description("Optional parameters for the request. For regular resources: resourceVersion. For pod logs: container, previous, sinceSeconds, sinceTime, timestamps, limitBytes")),
 	)
 }

@@ -105,6 +105,7 @@ Parameters:
 - `namespace`: Namespace (required for namespaced resources)
 - `name` (required): Name of the resource to get
 - `subresource`: Subresource to get (e.g., status, scale, logs)
+- `parameters`: Optional parameters for the request (see examples below)
 
 Example:
 
@@ -122,6 +123,40 @@ Example:
   }
 }
 ```
+
+Example of getting logs from a specific container with parameters:
+
+```json
+{
+  "name": "get_resource",
+  "arguments": {
+    "resource_type": "namespaced",
+    "group": "",
+    "version": "v1",
+    "resource": "pods",
+    "namespace": "default",
+    "name": "my-pod",
+    "subresource": "logs",
+    "parameters": {
+      "container": "my-container",
+      "sinceSeconds": "3600",
+      "timestamps": "true",
+      "limitBytes": "102400"
+    }
+  }
+}
+```
+
+Available parameters for pod logs:
+- `container`: Specify which container to get logs from
+- `previous`: Get logs from previous container instance (true/false)
+- `sinceSeconds`: Only return logs newer than a relative duration in seconds
+- `sinceTime`: Only return logs after a specific time (RFC3339 format)
+- `timestamps`: Include timestamps on each line (true/false)
+- `limitBytes`: Maximum number of bytes to return
+
+Available parameters for regular resources:
+- `resourceVersion`: When specified, shows the resource at that particular version
 
 #### list_resources
 

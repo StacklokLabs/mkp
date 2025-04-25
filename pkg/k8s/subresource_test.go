@@ -66,7 +66,7 @@ func TestGetResource(t *testing.T) {
 	client.SetClientset(fakeClientset)
 
 	// Mock the getPodLogs method
-	getPodLogsMock := func(ctx context.Context, namespace, name string) (*unstructured.Unstructured, error) {
+	getPodLogsMock := func(ctx context.Context, namespace, name string, parameters map[string]string) (*unstructured.Unstructured, error) {
 		return &unstructured.Unstructured{
 			Object: map[string]interface{}{
 				"apiVersion": "v1",
@@ -101,6 +101,7 @@ func TestGetResource(t *testing.T) {
 		errorMsg     string
 		gvr          schema.GroupVersionResource
 		checkLogs    bool
+		parameters   map[string]string
 	}{
 		{
 			name:         "Get clustered resource",
@@ -136,6 +137,15 @@ func TestGetResource(t *testing.T) {
 			gvr:          schema.GroupVersionResource{Group: "", Version: "v1", Resource: "pods"},
 			checkLogs:    true,
 		},
+		{
+			name:         "Get resource with resourceVersion parameter",
+			namespace:    "default",
+			resourceName: "test-deployment",
+			subresource:  "",
+			expectError:  false,
+			gvr:          deploymentGVR,
+			parameters:   map[string]string{"resourceVersion": "12345"},
+		},
 	}
 	
 	// Run test cases
@@ -143,7 +153,7 @@ func TestGetResource(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Call the method
 			ctx := context.Background()
-			result, err := client.GetResource(ctx, tc.gvr, tc.namespace, tc.resourceName, tc.subresource)
+			result, err := client.GetResource(ctx, tc.gvr, tc.namespace, tc.resourceName, tc.subresource, tc.parameters)
 			
 			// Assert expectations
 			if tc.expectError {
@@ -184,7 +194,7 @@ func TestGetPodLogs(t *testing.T) {
 	client := &Client{}
 	
 	// Create a mock implementation of getPodLogs
-	mockGetPodLogs := func(ctx context.Context, namespace, name string) (*unstructured.Unstructured, error) {
+	mockGetPodLogs := func(ctx context.Context, namespace, name string, parameters map[string]string) (*unstructured.Unstructured, error) {
 		return &unstructured.Unstructured{
 			Object: map[string]interface{}{
 				"apiVersion": "v1",
@@ -204,7 +214,7 @@ func TestGetPodLogs(t *testing.T) {
 	// Call the method through the GetResource method
 	ctx := context.Background()
 	podGVR := schema.GroupVersionResource{Group: "", Version: "v1", Resource: "pods"}
-	result, err := client.GetResource(ctx, podGVR, "default", "test-pod", "logs")
+	result, err := client.GetResource(ctx, podGVR, "default", "test-pod", "logs", nil)
 	
 	// Assert expectations
 	assert.NoError(t, err)

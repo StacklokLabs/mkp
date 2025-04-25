@@ -17,7 +17,7 @@ import (
 )
 
 // PodLogsFunc is a function type for getting pod logs
-type PodLogsFunc func(ctx context.Context, namespace, name string) (*unstructured.Unstructured, error)
+type PodLogsFunc func(ctx context.Context, namespace, name string, parameters map[string]string) (*unstructured.Unstructured, error)
 
 // Client represents a Kubernetes client with discovery and dynamic capabilities
 type Client struct {
@@ -161,6 +161,16 @@ func (c *Client) SetDiscoveryClient(discoveryClient discovery.DiscoveryInterface
 func (c *Client) SetClientset(clientset kubernetes.Interface) {
 	// Store the interface directly, we'll use it through the interface methods
 	c.clientset = clientset
+}
+
+// SetPodLogsFunc sets the function used to get pod logs (for testing purposes)
+func (c *Client) SetPodLogsFunc(getPodLogs PodLogsFunc) {
+	c.getPodLogs = getPodLogs
+}
+
+// GetPodLogs returns the current pod logs function
+func (c *Client) GetPodLogs() PodLogsFunc {
+	return c.getPodLogs
 }
 
 // IsReady returns true if the client is ready to use
