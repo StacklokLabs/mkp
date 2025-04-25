@@ -154,6 +154,9 @@ Available parameters for pod logs:
 - `sinceTime`: Only return logs after a specific time (RFC3339 format)
 - `timestamps`: Include timestamps on each line (true/false)
 - `limitBytes`: Maximum number of bytes to return
+- `tailLines`: Number of lines to return from the end of the logs
+
+By default, pod logs are limited to the last 100 lines and 32KB to avoid overwhelming the LLM's context window. These defaults can be overridden using the parameters above.
 
 Available parameters for regular resources:
 - `resourceVersion`: When specified, shows the resource at that particular version

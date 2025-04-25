@@ -71,7 +71,16 @@ func (c *Client) GetResource(ctx context.Context, gvr schema.GroupVersionResourc
 // defaultGetPodLogs retrieves logs from a pod and returns them as an unstructured object
 func (c *Client) defaultGetPodLogs(ctx context.Context, namespace, name string, parameters map[string]string) (*unstructured.Unstructured, error) {
 	// We need to use the CoreV1 client for logs, as the dynamic client doesn't handle logs properly
-	podLogOpts := corev1.PodLogOptions{}
+	
+	// Set reasonable defaults for LLM context window
+	// Default to last 100 lines and 32KB limit to avoid overwhelming the LLM context
+	defaultTailLines := int64(100)
+	defaultLimitBytes := int64(32 * 1024) // 32KB
+	
+	podLogOpts := corev1.PodLogOptions{
+		TailLines: &defaultTailLines,
+		LimitBytes: &defaultLimitBytes,
+	}
 	
 	// Apply parameters to PodLogOptions
 	// Note we don't follow nor tail the logs since we are not using a watcher,
@@ -88,10 +97,12 @@ func (c *Client) defaultGetPodLogs(ctx context.Context, namespace, name string, 
 			podLogOpts.Previous = previousBool
 		}
 		
-		// Since seconds
+		// Since seconds (overrides default tail lines)
 		if sinceSeconds, ok := parameters["sinceSeconds"]; ok {
 			if seconds, err := strconv.ParseInt(sinceSeconds, 10, 64); err == nil {
 				podLogOpts.SinceSeconds = &seconds
+				// If sinceSeconds is specified, don't use tail lines
+				podLogOpts.TailLines = nil
 			}
 		}
 		
@@ -109,10 +120,17 @@ func (c *Client) defaultGetPodLogs(ctx context.Context, namespace, name string, 
 			podLogOpts.Timestamps = timestampsBool
 		}
 		
-		// Limit bytes
+		// Limit bytes (overrides default limit)
 		if limitBytes, ok := parameters["limitBytes"]; ok {
 			if bytes, err := strconv.ParseInt(limitBytes, 10, 64); err == nil {
 				podLogOpts.LimitBytes = &bytes
+			}
+		}
+		
+		// Tail lines (overrides default tail lines)
+		if tailLines, ok := parameters["tailLines"]; ok {
+			if lines, err := strconv.ParseInt(tailLines, 10, 64); err == nil {
+				podLogOpts.TailLines = &lines
 			}
 		}
 	}

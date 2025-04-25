@@ -102,6 +102,6 @@ func NewGetResourceTool() mcp.Tool {
 		mcp.WithString("subresource",
 			mcp.Description("Subresource to get (e.g., status, scale, logs)")),
 		mcp.WithObject("parameters",
-			mcp.Description("Optional parameters for the request. For regular resources: resourceVersion. For pod logs: container, previous, sinceSeconds, sinceTime, timestamps, limitBytes")),
+			mcp.Description("Optional parameters for the request. For regular resources: resourceVersion. For pod logs: container, previous, sinceSeconds, sinceTime, timestamps, limitBytes, tailLines")),
 	)
 }
