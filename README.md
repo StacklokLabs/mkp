@@ -261,7 +261,9 @@ The MKP server provides access to Kubernetes resources through MCP resources. Th
 - Clustered resources: `k8s://clustered/{group}/{version}/{resource}/{name}`
 - Namespaced resources: `k8s://namespaced/{namespace}/{group}/{version}/{resource}/{name}`
 
-### Controlling Resource Discovery
+### Configuration
+
+#### Controlling Resource Discovery
 
 By default, MKP serves all Kubernetes resources as MCP resources, which provides useful context for LLMs. However, in large clusters with many resources, this can consume significant context space in the LLM.
 
@@ -276,6 +278,18 @@ You can disable this behavior by using the `--serve-resources` flag:
 ```
 
 Even with resource discovery disabled, the MCP tools (`get_resource`, `list_resources`, and `apply_resource`) remain fully functional, allowing you to interact with your Kubernetes cluster.
+
+#### Enabling Write Operations
+
+By default, MKP operates in read-only mode, meaning it does not allow write operations on the cluster, i.e. the `apply_resource` tool will not be available. You can enable write operations by using the `--read-write` flag:
+
+```bash
+# Run with write operations enabled
+./build/mkp-server --read-write=true
+
+# Run with a specific kubeconfig and write operations enabled
+./build/mkp-server --kubeconfig=/path/to/kubeconfig --read-write=true
+```
 
 ## Development
 

@@ -14,12 +14,17 @@ type Config struct {
 	// ServeResources determines whether to serve cluster resources
 	// Setting this to false can reduce context size for LLMs when working with large clusters
 	ServeResources bool
+
+	// ReadWrite determines whether the MCP server can modify resources in the cluster
+	// When false, the server operates in read-only mode and does not serve the apply_resource tool
+	ReadWrite bool
 }
 
 // DefaultConfig returns a Config with default values
 func DefaultConfig() *Config {
 	return &Config{
-		ServeResources: true, // Default to serving resources for backward compatibility
+		ServeResources: true,  // Default to serving resources for backward compatibility
+		ReadWrite:      false, // Default to read-only mode
 	}
 }
 
@@ -42,8 +47,11 @@ func CreateServer(k8sClient *k8s.Client, config *Config) *server.MCPServer {
 
 	// Add tools
 	mcpServer.AddTool(NewListResourcesTool(), impl.HandleListResources)
-	mcpServer.AddTool(NewApplyResourceTool(), impl.HandleApplyResource)
 	mcpServer.AddTool(NewGetResourceTool(), impl.HandleGetResource)
+
+	if config.ReadWrite {
+		mcpServer.AddTool(NewApplyResourceTool(), impl.HandleApplyResource)
+	}
 
 	// Add resource templates
 	mcpServer.AddResourceTemplate(
