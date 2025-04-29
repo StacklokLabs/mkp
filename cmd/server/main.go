@@ -17,7 +17,7 @@ func main() {
 	// Parse command line flags
 	kubeconfig := flag.String("kubeconfig", "", "Path to kubeconfig file. If not provided, in-cluster config will be used")
 	addr := flag.String("addr", ":8080", "Address to listen on")
-	serveResources := flag.Bool("serve-resources", true, "Whether to serve cluster resources as MCP resources. Setting to false can reduce context size for LLMs when working with large clusters")
+	serveResources := flag.Bool("serve-resources", false, "Whether to serve cluster resources as MCP resources. Setting to false can reduce context size for LLMs when working with large clusters")
 	readWrite := flag.Bool("read-write", false, "Whether to allow write operations on the cluster. When false, the server operates in read-only mode")
 	flag.Parse()
 
