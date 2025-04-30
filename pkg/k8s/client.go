@@ -186,6 +186,22 @@ func (c *Client) ApplyNamespacedResource(ctx context.Context, gvr schema.GroupVe
 	return c.dynamicClient.Resource(gvr).Namespace(namespace).Create(ctx, obj, metav1.CreateOptions{})
 }
 
+// DeleteClusteredResource deletes a clustered resource
+func (c *Client) DeleteClusteredResource(ctx context.Context, gvr schema.GroupVersionResource, name string) error {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	
+	return c.dynamicClient.Resource(gvr).Delete(ctx, name, metav1.DeleteOptions{})
+}
+
+// DeleteNamespacedResource deletes a namespaced resource
+func (c *Client) DeleteNamespacedResource(ctx context.Context, gvr schema.GroupVersionResource, namespace, name string) error {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	
+	return c.dynamicClient.Resource(gvr).Namespace(namespace).Delete(ctx, name, metav1.DeleteOptions{})
+}
+
 // SetDynamicClient sets the dynamic client (for testing purposes)
 func (c *Client) SetDynamicClient(dynamicClient dynamic.Interface) {
 	c.mu.Lock()
