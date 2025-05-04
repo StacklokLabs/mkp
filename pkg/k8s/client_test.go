@@ -19,12 +19,12 @@ import (
 func TestListClusteredResources(t *testing.T) {
 	// Create a fake dynamic client
 	scheme := runtime.NewScheme()
-	
+
 	// Register list kinds for the resources we'll be testing
 	listKinds := map[schema.GroupVersionResource]string{
 		{Group: "rbac.authorization.k8s.io", Version: "v1", Resource: "clusterroles"}: "ClusterRoleList",
 	}
-	
+
 	client := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, listKinds)
 
 	// Create a test client with the fake dynamic client
@@ -59,6 +59,25 @@ func TestListClusteredResources(t *testing.T) {
 						},
 					},
 				},
+				{
+					Object: map[string]interface{}{
+						"apiVersion": "rbac.authorization.k8s.io/v1",
+						"kind":       "ClusterRole",
+						"metadata": map[string]interface{}{
+							"name": "test-cluster-role-2",
+							"labels": map[string]interface{}{
+								"app": "test-app",
+							},
+						},
+						"rules": []interface{}{
+							map[string]interface{}{
+								"apiGroups": []interface{}{""},
+								"resources": []interface{}{"pods"},
+								"verbs":     []interface{}{"get", "list", "watch"},
+							},
+						},
+					},
+				},
 			},
 		}
 		return true, list, nil
@@ -66,25 +85,35 @@ func TestListClusteredResources(t *testing.T) {
 
 	// Test ListClusteredResources
 	ctx := context.Background()
-	list, err := testClient.ListClusteredResources(ctx, gvr)
-	
+	list, err := testClient.ListClusteredResources(ctx, gvr, "")
+
 	// Verify there was no error
 	assert.NoError(t, err, "ListClusteredResources should not return an error")
-	
+
+	// Verify the result
+	assert.Len(t, list.Items, 2, "Expected 2 items")
+	assert.Equal(t, "test-cluster-role", list.Items[0].GetName(), "Expected name 'test-cluster-role'")
+
+	// Test ListClusteredResources with label selector
+	list, err = testClient.ListClusteredResources(ctx, gvr, "app=test-app")
+
+	// Verify there was no error
+	assert.NoError(t, err, "ListClusteredResources should not return an error")
+
 	// Verify the result
 	assert.Len(t, list.Items, 1, "Expected 1 item")
-	assert.Equal(t, "test-cluster-role", list.Items[0].GetName(), "Expected name 'test-cluster-role'")
+	assert.Equal(t, "test-cluster-role-2", list.Items[0].GetName(), "Expected name 'test-cluster-role-2'")
 }
 
 func TestListNamespacedResources(t *testing.T) {
 	// Create a fake dynamic client
 	scheme := runtime.NewScheme()
-	
+
 	// Register list kinds for the resources we'll be testing
 	listKinds := map[schema.GroupVersionResource]string{
 		{Group: "", Version: "v1", Resource: "services"}: "ServiceList",
 	}
-	
+
 	client := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, listKinds)
 
 	// Create a test client with the fake dynamic client
@@ -121,6 +150,27 @@ func TestListNamespacedResources(t *testing.T) {
 						},
 					},
 				},
+				{
+					Object: map[string]interface{}{
+						"apiVersion": "v1",
+						"kind":       "Service",
+						"metadata": map[string]interface{}{
+							"name":      "test-service-2",
+							"namespace": "default",
+							"labels": map[string]interface{}{
+								"app": "test-app",
+							},
+						},
+						"spec": map[string]interface{}{
+							"ports": []interface{}{
+								map[string]interface{}{
+									"port":     int64(80),
+									"protocol": "TCP",
+								},
+							},
+						},
+					},
+				},
 			},
 		}
 		return true, list, nil
@@ -128,14 +178,24 @@ func TestListNamespacedResources(t *testing.T) {
 
 	// Test ListNamespacedResources
 	ctx := context.Background()
-	list, err := testClient.ListNamespacedResources(ctx, gvr, "default")
-	
+	list, err := testClient.ListNamespacedResources(ctx, gvr, "default", "")
+
 	// Verify there was no error
 	assert.NoError(t, err, "ListNamespacedResources should not return an error")
-	
+
+	// Verify the result
+	assert.Len(t, list.Items, 2, "Expected 2 items")
+	assert.Equal(t, "test-service", list.Items[0].GetName(), "Expected name 'test-service'")
+
+	// Test ListNamespacedResources with label selector
+	list, err = testClient.ListNamespacedResources(ctx, gvr, "default", "app=test-app")
+
+	// Verify there was no error
+	assert.NoError(t, err, "ListNamespacedResources should not return an error")
+
 	// Verify the result
 	assert.Len(t, list.Items, 1, "Expected 1 item")
-	assert.Equal(t, "test-service", list.Items[0].GetName(), "Expected name 'test-service'")
+	assert.Equal(t, "test-service-2", list.Items[0].GetName(), "Expected name 'test-service-2'")
 }
 
 func TestApplyClusteredResource(t *testing.T) {
@@ -186,12 +246,13 @@ func TestApplyClusteredResource(t *testing.T) {
 	// Test ApplyClusteredResource
 	ctx := context.Background()
 	result, err := testClient.ApplyClusteredResource(ctx, gvr, obj)
-	
+
 	// Verify there was no error
 	assert.NoError(t, err, "ApplyClusteredResource should not return an error")
-	
+
 	// Verify the result
 	assert.Equal(t, "test-cluster-role", result.GetName(), "Expected name 'test-cluster-role'")
+
 }
 
 func TestApplyNamespacedResource(t *testing.T) {
@@ -244,10 +305,10 @@ func TestApplyNamespacedResource(t *testing.T) {
 	// Test ApplyNamespacedResource
 	ctx := context.Background()
 	result, err := testClient.ApplyNamespacedResource(ctx, gvr, "default", obj)
-	
+
 	// Verify there was no error
 	assert.NoError(t, err, "ApplyNamespacedResource should not return an error")
-	
+
 	// Verify the result
 	assert.Equal(t, "test-service", result.GetName(), "Expected name 'test-service'")
 }
@@ -295,10 +356,10 @@ func TestGetClusteredResource(t *testing.T) {
 	// Test GetClusteredResource
 	ctx := context.Background()
 	result, err := testClient.GetClusteredResource(ctx, gvr, "test-cluster-role")
-	
+
 	// Verify there was no error
 	assert.NoError(t, err, "GetClusteredResource should not return an error")
-	
+
 	// Verify the result
 	unstructuredResult, ok := result.(*unstructured.Unstructured)
 	assert.True(t, ok, "Expected *unstructured.Unstructured")
@@ -350,10 +411,10 @@ func TestGetNamespacedResource(t *testing.T) {
 	// Test GetNamespacedResource
 	ctx := context.Background()
 	result, err := testClient.GetNamespacedResource(ctx, gvr, "default", "test-service")
-	
+
 	// Verify there was no error
 	assert.NoError(t, err, "GetNamespacedResource should not return an error")
-	
+
 	// Verify the result
 	unstructuredResult, ok := result.(*unstructured.Unstructured)
 	assert.True(t, ok, "Expected *unstructured.Unstructured")
@@ -363,14 +424,14 @@ func TestGetNamespacedResource(t *testing.T) {
 func TestSetDynamicClient(t *testing.T) {
 	// Create a test client
 	testClient := &Client{}
-	
+
 	// Create a fake dynamic client
 	scheme := runtime.NewScheme()
 	fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme)
-	
+
 	// Set the dynamic client
 	testClient.SetDynamicClient(fakeDynamicClient)
-	
+
 	// Verify the dynamic client was set
 	assert.NotNil(t, testClient.dynamicClient, "Expected dynamicClient to be set")
 }
@@ -378,13 +439,13 @@ func TestSetDynamicClient(t *testing.T) {
 func TestSetDiscoveryClient(t *testing.T) {
 	// Create a test client
 	testClient := &Client{}
-	
+
 	// Create a fake discovery client
 	fakeDiscoveryClient := &discoveryfake.FakeDiscovery{Fake: &ktesting.Fake{}}
-	
+
 	// Set the discovery client
 	testClient.SetDiscoveryClient(fakeDiscoveryClient)
-	
+
 	// Verify the discovery client was set
 	assert.NotNil(t, testClient.discoveryClient, "Expected discoveryClient to be set")
 }
@@ -393,26 +454,26 @@ func TestIsReady(t *testing.T) {
 	// Test with all clients nil
 	testClient := &Client{}
 	assert.False(t, testClient.IsReady(), "Expected IsReady to return false when all clients are nil")
-	
+
 	// Test with only dynamic client set
 	testClient = &Client{}
 	scheme := runtime.NewScheme()
 	fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme)
 	testClient.SetDynamicClient(fakeDynamicClient)
 	assert.False(t, testClient.IsReady(), "Expected IsReady to return false when some clients are nil")
-	
+
 	// Test with only discovery client set
 	testClient = &Client{}
 	fakeDiscoveryClient := &discoveryfake.FakeDiscovery{Fake: &ktesting.Fake{}}
 	testClient.SetDiscoveryClient(fakeDiscoveryClient)
 	assert.False(t, testClient.IsReady(), "Expected IsReady to return false when some clients are nil")
-	
+
 	// Test with only clientset set
 	testClient = &Client{}
 	fakeClientset := kubefake.NewSimpleClientset()
 	testClient.SetClientset(fakeClientset)
 	assert.False(t, testClient.IsReady(), "Expected IsReady to return false when some clients are nil")
-	
+
 	// Test with all clients set
 	testClient = &Client{}
 	testClient.SetDynamicClient(fakeDynamicClient)
@@ -424,7 +485,7 @@ func TestIsReady(t *testing.T) {
 func TestListAPIResources(t *testing.T) {
 	// Create a fake discovery client
 	fakeDiscoveryClient := &discoveryfake.FakeDiscovery{Fake: &ktesting.Fake{}}
-	
+
 	// Add some fake API resources
 	fakeDiscoveryClient.Resources = []*metav1.APIResourceList{
 		{
@@ -458,26 +519,26 @@ func TestListAPIResources(t *testing.T) {
 			},
 		},
 	}
-	
+
 	// Create a test client with the fake discovery client
 	testClient := &Client{
 		discoveryClient: fakeDiscoveryClient,
 	}
-	
+
 	// Test ListAPIResources
 	ctx := context.Background()
 	resources, err := testClient.ListAPIResources(ctx)
-	
+
 	// Verify there was no error
 	assert.NoError(t, err, "ListAPIResources should not return an error")
-	
+
 	// Verify the result
 	assert.Len(t, resources, 2, "Expected 2 resource lists")
-	
+
 	// Check the first resource list
 	assert.Equal(t, "v1", resources[0].GroupVersion, "Expected GroupVersion 'v1'")
 	assert.Len(t, resources[0].APIResources, 2, "Expected 2 API resources in the first list")
-	
+
 	// Check the second resource list
 	assert.Equal(t, "apps/v1", resources[1].GroupVersion, "Expected GroupVersion 'apps/v1'")
 	assert.Len(t, resources[1].APIResources, 2, "Expected 2 API resources in the second list")
