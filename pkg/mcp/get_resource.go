@@ -19,7 +19,7 @@ func (m *Implementation) HandleGetResource(ctx context.Context, request mcp.Call
 	namespace := mcp.ParseString(request, "namespace", "")
 	name := mcp.ParseString(request, "name", "")
 	subresource := mcp.ParseString(request, "subresource", "")
-	
+
 	// Parse parameters for subresources
 	var parameters map[string]string
 	if paramsRaw, exists := request.Params.Arguments["parameters"]; exists && paramsRaw != nil {
@@ -103,5 +103,9 @@ func NewGetResourceTool() mcp.Tool {
 			mcp.Description("Subresource to get (e.g., status, scale, logs)")),
 		mcp.WithObject("parameters",
 			mcp.Description("Optional parameters for the request. For regular resources: resourceVersion. For pod logs: container, previous, sinceSeconds, sinceTime, timestamps, limitBytes, tailLines")),
+		mcp.WithToolAnnotation(mcp.ToolAnnotation{
+			Title:        "Get Kubernetes resource",
+			ReadOnlyHint: true,
+		}),
 	)
 }

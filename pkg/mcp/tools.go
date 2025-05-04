@@ -21,6 +21,10 @@ func NewListResourcesTool() mcp.Tool {
 			mcp.Required()),
 		mcp.WithString("namespace",
 			mcp.Description("Namespace (required for namespaced resources)")),
+		mcp.WithToolAnnotation(mcp.ToolAnnotation{
+			Title:        "List Kubernetes resources",
+			ReadOnlyHint: true,
+		}),
 	)
 }
 
@@ -44,6 +48,11 @@ func NewApplyResourceTool() mcp.Tool {
 		mcp.WithObject("manifest",
 			mcp.Description("Resource manifest"),
 			mcp.Required()),
+		mcp.WithToolAnnotation(mcp.ToolAnnotation{
+			Title:          "Apply (create or update) a Kubernetes resource",
+			ReadOnlyHint:   false,
+			IdempotentHint: true,
+		}),
 	)
 }
 
