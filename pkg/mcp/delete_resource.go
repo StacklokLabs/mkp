@@ -85,5 +85,10 @@ func NewDeleteResourceTool() mcp.Tool {
 		mcp.WithString("name",
 			mcp.Description("Name of the resource to delete"),
 			mcp.Required()),
+		mcp.WithToolAnnotation(mcp.ToolAnnotation{
+			Title:          "Delete a Kubernetes resource",
+			ReadOnlyHint:   false,
+			IdempotentHint: true,
+		}),
 	)
 }
