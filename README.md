@@ -14,6 +14,7 @@ MKP is a Model Context Protocol (MCP) server for Kubernetes that allows LLM-powe
 - Get resources and their subresources (including status, scale, logs, etc.)
 - Apply (create or update) clustered resources
 - Apply (create or update) namespaced resources
+- Execute commands in pods with timeout control
 - Generic and pluggable implementation using API Machinery's unstructured client
 - Built-in rate limiting for protection against excessive API calls
 
@@ -256,6 +257,74 @@ Example:
 }
 ```
 
+#### post_resource
+
+Posts to a Kubernetes resource or its subresource, particularly useful for executing commands in pods.
+
+Parameters:
+- `resource_type` (required): Type of resource to post to (clustered or namespaced)
+- `group`: API group (e.g., apps, networking.k8s.io)
+- `version` (required): API version (e.g., v1, v1beta1)
+- `resource` (required): Resource name (e.g., deployments, services)
+- `namespace`: Namespace (required for namespaced resources)
+- `name` (required): Name of the resource to post to
+- `subresource`: Subresource to post to (e.g., exec)
+- `body` (required): Body to post to the resource
+- `parameters`: Optional parameters for the request
+
+Example of executing a command in a pod:
+
+```json
+{
+  "name": "post_resource",
+  "arguments": {
+    "resource_type": "namespaced",
+    "group": "",
+    "version": "v1",
+    "resource": "pods",
+    "namespace": "default",
+    "name": "my-pod",
+    "subresource": "exec",
+    "body": {
+      "command": ["ls", "-la", "/"],
+      "container": "my-container",
+      "timeout": 30
+    }
+  }
+}
+```
+
+The `body` for pod exec supports the following fields:
+- `command` (required): Command to execute, either as a string or an array of strings
+- `container` (optional): Container name to execute the command in (defaults to the first container)
+- `timeout` (optional): Timeout in seconds (defaults to 15 seconds, maximum 60 seconds)
+
+Note on timeouts:
+- Default timeout: 15 seconds if not specified
+- Maximum timeout: 60 seconds (any larger value will be capped)
+- Commands that exceed the timeout will be terminated and return a timeout error
+
+The response includes stdout, stderr, and any error message:
+
+```json
+{
+  "apiVersion": "v1",
+  "kind": "Pod",
+  "metadata": {
+    "name": "my-pod",
+    "namespace": "default"
+  },
+  "spec": {
+    "command": ["ls", "-la", "/"]
+  },
+  "status": {
+    "stdout": "total 48\ndrwxr-xr-x   1 root root 4096 May  5 14:30 .\ndrwxr-xr-x   1 root root 4096 May  5 14:30 ..\n...",
+    "stderr": "",
+    "error": ""
+  }
+}
+```
+
 ### MCP Resources
 
 The MKP server provides access to Kubernetes resources through MCP resources. The resource URIs follow these formats:
@@ -279,11 +348,11 @@ You can disable this behavior by using the `--serve-resources` flag:
 ./build/mkp-server --kubeconfig=/path/to/kubeconfig --serve-resources=false
 ```
 
-Even with resource discovery disabled, the MCP tools (`get_resource`, `list_resources`, and `apply_resource`) remain fully functional, allowing you to interact with your Kubernetes cluster.
+Even with resource discovery disabled, the MCP tools (`get_resource`, `list_resources`, `apply_resource`, `delete_resource`, and `post_resource`) remain fully functional, allowing you to interact with your Kubernetes cluster.
 
 #### Enabling Write Operations
 
-By default, MKP operates in read-only mode, meaning it does not allow write operations on the cluster, i.e. the `apply_resource` tool will not be available. You can enable write operations by using the `--read-write` flag:
+By default, MKP operates in read-only mode, meaning it does not allow write operations on the cluster, i.e. the `apply_resource`, `delete_resource`, and `post_resource` tools will not be available. You can enable write operations by using the `--read-write` flag:
 
 ```bash
 # Run with write operations enabled
