@@ -9,10 +9,19 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 // HandleListResources handles the list_resources tool
+// Parameters:
+//   - resource_type: Type of the resource ("clustered" or "namespaced")
+//   - group: API group of the resource
+//   - version: API version of the resource
+//   - resource: Resource type (e.g., "pods", "services")
+//   - namespace: Namespace for namespaced resources
+//   - label_selector: Kubernetes label selector for filtering resources (optional)
+//     Label selector format: "key1=value1,key2=value2" for equality or "key1 in (value1, value2),!key3" for set-based
 func (m *Implementation) HandleListResources(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	// Parse parameters
 	resourceType := mcp.ParseString(request, "resource_type", "")
@@ -20,6 +29,7 @@ func (m *Implementation) HandleListResources(ctx context.Context, request mcp.Ca
 	version := mcp.ParseString(request, "version", "")
 	resource := mcp.ParseString(request, "resource", "")
 	namespace := mcp.ParseString(request, "namespace", "")
+	labelSelector := mcp.ParseString(request, "label_selector", "")
 
 	// Validate parameters
 	if resourceType == "" {
@@ -34,6 +44,12 @@ func (m *Implementation) HandleListResources(ctx context.Context, request mcp.Ca
 	if resourceType == "namespaced" && namespace == "" {
 		return mcp.NewToolResultError("namespace is required for namespaced resources"), nil
 	}
+	if labelSelector != "" {
+		_, err := labels.Parse(labelSelector)
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("invalid label selector: %v", err)), nil
+		}
+	}
 
 	// Create GVR
 	gvr := schema.GroupVersionResource{
@@ -47,9 +63,9 @@ func (m *Implementation) HandleListResources(ctx context.Context, request mcp.Ca
 	var err error
 	switch resourceType {
 	case "clustered":
-		list, err = m.k8sClient.ListClusteredResources(ctx, gvr)
+		list, err = m.k8sClient.ListClusteredResources(ctx, gvr, labelSelector)
 	case "namespaced":
-		list, err = m.k8sClient.ListNamespacedResources(ctx, gvr, namespace)
+		list, err = m.k8sClient.ListNamespacedResources(ctx, gvr, namespace, labelSelector)
 	default:
 		return mcp.NewToolResultError(fmt.Sprintf("Invalid resource_type: %s", resourceType)), nil
 	}
