@@ -17,4 +17,7 @@ const (
 
 	// ListResourcesToolName is the name of the list_resources tool for tests
 	ListResourcesToolName = "list_resources"
+
+	// PostResourceToolName is the name of the post_resource tool for tests
+	PostResourceToolName = "post_resource"
 )
