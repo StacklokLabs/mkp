@@ -15,6 +15,7 @@ MKP is a Model Context Protocol (MCP) server for Kubernetes that allows LLM-powe
 - Apply (create or update) clustered resources
 - Apply (create or update) namespaced resources
 - Generic and pluggable implementation using API Machinery's unstructured client
+- Built-in rate limiting for protection against excessive API calls
 
 ## Why MKP?
 
@@ -47,6 +48,7 @@ MKP offers several key advantages as a Model Context Protocol server for Kuberne
 ### Production-Ready Architecture
 - Designed for reliability and performance in production environments
 - Proper error handling and resource management
+- Built-in rate limiting to protect against excessive API calls
 - Testable design with comprehensive unit tests
 - Follows Kubernetes development best practices
 
@@ -289,6 +291,24 @@ By default, MKP operates in read-only mode, meaning it does not allow write oper
 
 # Run with a specific kubeconfig and write operations enabled
 ./build/mkp-server --kubeconfig=/path/to/kubeconfig --read-write=true
+```
+
+### Rate Limiting
+
+MKP includes a built-in rate limiting mechanism to protect the server from excessive API calls, which is particularly important when used with AI agents. The rate limiter uses a token bucket algorithm and applies different limits based on the operation type:
+
+- Read operations (list_resources, get_resource): 120 requests per minute
+- Write operations (apply_resource, delete_resource): 30 requests per minute
+- Default for other operations: 60 requests per minute
+
+Rate limits are applied per client session, ensuring fair resource allocation across multiple clients. The rate limiting feature can be enabled or disabled via the command line flag:
+
+```bash
+# Run with rate limiting enabled (default)
+./build/mkp-server
+
+# Run with rate limiting disabled
+./build/mkp-server --enable-rate-limiting=false
 ```
 
 ## Development
