@@ -24,6 +24,9 @@ func main() {
 		"Whether to allow write operations on the cluster. When false, the server operates in read-only mode")
 	kubeconfigRefreshInterval := flag.Duration("kubeconfig-refresh-interval", 0,
 		"Interval to periodically re-read the kubeconfig (e.g., 5m for 5 minutes). If 0, no refresh will be performed")
+	enableRateLimiting := flag.Bool("enable-rate-limiting", true,
+		"Whether to enable rate limiting for tool calls. When false, no rate limiting will be applied")
+
 	flag.Parse()
 
 	// Create a context that can be cancelled
@@ -61,8 +64,9 @@ func main() {
 
 	// Create MCP server config
 	config := &mcp.Config{
-		ServeResources: *serveResources,
-		ReadWrite:      *readWrite,
+		ServeResources:     *serveResources,
+		ReadWrite:          *readWrite,
+		EnableRateLimiting: *enableRateLimiting,
 	}
 
 	// Create MCP server using the helper function
@@ -99,10 +103,17 @@ func main() {
 	shutdownCh := make(chan error, 1)
 	go func() {
 		log.Println("Initiating server shutdown...")
+
+		// Stop the SSE server
 		err := sseServer.Shutdown(shutdownCtx)
 		if err != nil {
 			log.Printf("Error during shutdown: %v", err)
 		}
+
+		// Stop the MCP server resources (including rate limiter)
+		log.Println("Stopping MCP server resources...")
+		mcp.StopServer()
+
 		shutdownCh <- err
 		close(shutdownCh)
 	}()
