@@ -7,6 +7,7 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 
 	"github.com/StacklokLabs/mkp/pkg/k8s"
+	"github.com/StacklokLabs/mkp/pkg/ratelimit"
 )
 
 // Config holds configuration options for the MCP server
@@ -18,15 +19,28 @@ type Config struct {
 	// ReadWrite determines whether the MCP server can modify resources in the cluster
 	// When false, the server operates in read-only mode and does not serve the apply_resource tool
 	ReadWrite bool
+
+	// EnableRateLimiting determines whether to enable rate limiting for tool calls
+	// When true, a default rate limiter will be used to prevent excessive API calls
+	EnableRateLimiting bool
 }
 
 // DefaultConfig returns a Config with default values
 func DefaultConfig() *Config {
 	return &Config{
-		ServeResources: true,  // Default to serving resources for backward compatibility
-		ReadWrite:      false, // Default to read-only mode
+		ServeResources:     true,  // Default to serving resources for backward compatibility
+		ReadWrite:          false, // Default to read-only mode
+		EnableRateLimiting: true,  // Default to enabling rate limiting
 	}
 }
+
+// serverResources holds resources that need to be cleaned up when the server is stopped
+type serverResources struct {
+	rateLimiter *ratelimit.RateLimiter
+}
+
+// Global variable to hold server resources
+var resources *serverResources
 
 // CreateServer creates a new MCP server for Kubernetes
 func CreateServer(k8sClient *k8s.Client, config *Config) *server.MCPServer {
@@ -37,12 +51,29 @@ func CreateServer(k8sClient *k8s.Client, config *Config) *server.MCPServer {
 	// Create MCP implementation
 	impl := NewImplementation(k8sClient)
 
-	// Create MCP server
+	options := []server.ServerOption{
+		server.WithResourceCapabilities(true, true),
+		server.WithToolCapabilities(true),
+	}
+
+	// Add rate limiting middleware if enabled
+	if config.EnableRateLimiting {
+		// Create and store the rate limiter for later cleanup
+		limiter := ratelimit.GetDefaultRateLimiter()
+
+		// Store the limiter for cleanup when the server is stopped
+		resources = &serverResources{
+			rateLimiter: limiter,
+		}
+
+		options = append(options, server.WithToolHandlerMiddleware(limiter.Middleware()))
+	}
+
+	// Create MCP server with all options
 	mcpServer := server.NewMCPServer(
 		"kubernetes-mcp-server",
 		"0.1.0",
-		server.WithResourceCapabilities(true, true),
-		server.WithToolCapabilities(true),
+		options...,
 	)
 
 	// Add tools
@@ -82,6 +113,17 @@ func CreateServer(k8sClient *k8s.Client, config *Config) *server.MCPServer {
 	}
 
 	return mcpServer
+}
+
+// StopServer stops the MCP server and cleans up resources
+func StopServer() {
+	// Clean up resources
+	if resources != nil {
+		// Stop the rate limiter if it exists
+		if resources.rateLimiter != nil {
+			resources.rateLimiter.Stop()
+		}
+	}
 }
 
 // CreateSSEServer creates a new SSE server for the MCP server

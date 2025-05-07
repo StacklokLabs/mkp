@@ -19,6 +19,7 @@ func main() {
 	addr := flag.String("addr", ":8080", "Address to listen on")
 	serveResources := flag.Bool("serve-resources", false, "Whether to serve cluster resources as MCP resources. Setting to false can reduce context size for LLMs when working with large clusters")
 	readWrite := flag.Bool("read-write", false, "Whether to allow write operations on the cluster. When false, the server operates in read-only mode")
+	enableRateLimiting := flag.Bool("enable-rate-limiting", true, "Whether to enable rate limiting for tool calls. When false, no rate limiting will be applied")
 	kubeconfigRefreshInterval := flag.Duration("kubeconfig-refresh-interval", 0, "Interval to periodically re-read the kubeconfig (e.g., 5m for 5 minutes). If 0, no refresh will be performed")
 	flag.Parse()
 
@@ -40,7 +41,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create Kubernetes client: %v", err)
 	}
-	
+
 	// Start periodic refresh if interval is set
 	if *kubeconfigRefreshInterval > 0 {
 		log.Printf("Starting periodic kubeconfig refresh every %v", *kubeconfigRefreshInterval)
@@ -57,8 +58,9 @@ func main() {
 
 	// Create MCP server config
 	config := &mcp.Config{
-		ServeResources: *serveResources,
-		ReadWrite:      *readWrite,
+		ServeResources:     *serveResources,
+		ReadWrite:          *readWrite,
+		EnableRateLimiting: *enableRateLimiting,
 	}
 
 	// Create MCP server using the helper function
@@ -66,10 +68,10 @@ func main() {
 
 	// Create SSE server
 	sseServer := mcp.CreateSSEServer(mcpServer)
-	
+
 	// Channel to receive server errors
 	serverErrCh := make(chan error, 1)
-	
+
 	// Start the server in a goroutine
 	go func() {
 		log.Printf("Starting MCP server on %s", *addr)
@@ -78,7 +80,7 @@ func main() {
 			serverErrCh <- err
 		}
 	}()
-	
+
 	// Wait for either a server error or a shutdown signal
 	select {
 	case err := <-serverErrCh:
@@ -86,23 +88,30 @@ func main() {
 	case <-ctx.Done():
 		log.Println("Shutting down server...")
 	}
-	
+
 	// Create a context with timeout for shutdown
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer shutdownCancel()
-	
+
 	// Attempt to shut down the server gracefully
 	shutdownCh := make(chan error, 1)
 	go func() {
 		log.Println("Initiating server shutdown...")
+
+		// Stop the SSE server
 		err := sseServer.Shutdown(shutdownCtx)
 		if err != nil {
 			log.Printf("Error during shutdown: %v", err)
 		}
+
+		// Stop the MCP server resources (including rate limiter)
+		log.Println("Stopping MCP server resources...")
+		mcp.StopServer()
+
 		shutdownCh <- err
 		close(shutdownCh)
 	}()
-	
+
 	// Wait for shutdown to complete or timeout
 	select {
 	case err, ok := <-shutdownCh:
@@ -118,7 +127,7 @@ func main() {
 		// Force exit after timeout
 		os.Exit(1)
 	}
-	
+
 	log.Println("Server shutdown complete, exiting...")
 	// Ensure we exit the program
 	os.Exit(0)
