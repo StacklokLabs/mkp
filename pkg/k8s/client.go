@@ -77,7 +77,7 @@ func NewClient(kubeconfigPath string) (*Client, error) {
 		restConfig:      config,
 		kubeconfigPath:  kubeconfigPath,
 	}
-	
+
 	// Set the default implementations
 	client.getPodLogs = client.defaultGetPodLogs
 	client.execInPod = client.defaultExecInPod
