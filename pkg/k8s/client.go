@@ -21,12 +21,15 @@ import (
 // PodLogsFunc is a function type for getting pod logs
 type PodLogsFunc func(ctx context.Context, namespace, name string, parameters map[string]string) (*unstructured.Unstructured, error)
 
+// ExecInPodFunc is a function type for executing commands in pods
+type ExecInPodFunc func(ctx context.Context, namespace, name string, command []string, container string, timeout time.Duration) (*unstructured.Unstructured, error)
+
 // Client represents a Kubernetes client with discovery and dynamic capabilities
 type Client struct {
 	discoveryClient discovery.DiscoveryInterface
 	dynamicClient   dynamic.Interface
 	clientset       kubernetes.Interface
-	getPodLogs      PodLogsFunc
+	restConfig      *rest.Config
 	kubeconfigPath  string
 	mu              sync.RWMutex // Protects access to client components
 
@@ -36,6 +39,10 @@ type Client struct {
 	refreshInterval time.Duration
 	refreshing      bool
 	refreshMu       sync.Mutex // Protects refreshing state
+
+	// function overrides for testing purposes
+	getPodLogs PodLogsFunc
+	execInPod  ExecInPodFunc
 }
 
 // NewClient creates a new Kubernetes client
@@ -67,12 +74,14 @@ func NewClient(kubeconfigPath string) (*Client, error) {
 		discoveryClient: discoveryClient,
 		dynamicClient:   dynamicClient,
 		clientset:       clientset,
+		restConfig:      config,
 		kubeconfigPath:  kubeconfigPath,
 	}
 
-	// Set the default implementation for getPodLogs
+	// Set the default implementations
 	client.getPodLogs = client.defaultGetPodLogs
-
+	client.execInPod = client.defaultExecInPod
+	
 	return client, nil
 }
 
@@ -246,6 +255,33 @@ func (c *Client) GetPodLogs() PodLogsFunc {
 	return c.getPodLogs
 }
 
+// SetExecInPodFunc sets the function used to execute commands in pods (for testing purposes)
+func (c *Client) SetExecInPodFunc(execInPodFunc ExecInPodFunc) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	
+	c.execInPod = execInPodFunc
+}
+
+// GetExecInPodFunc returns the current exec in pod function
+func (c *Client) GetExecInPodFunc() ExecInPodFunc {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	
+	return c.execInPod
+}
+
+// ExecInPod executes a command in a pod and returns the result
+// The command will be killed if it exceeds the timeout
+// If timeout is 0 or negative, the default timeout (15s) will be used
+// If timeout exceeds MaxExecTimeout, it will be capped at MaxExecTimeout
+func (c *Client) ExecInPod(ctx context.Context, namespace, name string, command []string, container string, timeout time.Duration) (*unstructured.Unstructured, error) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	
+	return c.execInPod(ctx, namespace, name, command, container, timeout)
+}
+
 // IsReady returns true if the client is ready to use
 func (c *Client) IsReady() bool {
 	c.mu.RLock()
@@ -287,6 +323,7 @@ func (c *Client) RefreshClient() error {
 	c.discoveryClient = discoveryClient
 	c.dynamicClient = dynamicClient
 	c.clientset = clientset
+	c.restConfig = config
 
 	return nil
 }
