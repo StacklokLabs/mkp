@@ -3,11 +3,15 @@ package mcp
 import (
 	"context"
 	"log"
+	"time"
 
 	"github.com/mark3labs/mcp-go/server"
 
 	"github.com/StacklokLabs/mkp/pkg/k8s"
 )
+
+// defaultCtxTimeout is the default timeout for tool calls
+const defaultCtxTimeout = 30 * time.Second
 
 // Config holds configuration options for the MCP server
 type Config struct {
@@ -43,6 +47,9 @@ func CreateServer(k8sClient *k8s.Client, config *Config) *server.MCPServer {
 		"0.1.0",
 		server.WithResourceCapabilities(true, true),
 		server.WithToolCapabilities(true),
+		// Add timeout middleware to prevent context cancellation errors
+		WithTimeoutContext(defaultCtxTimeout),
+		server.WithRecovery(),
 	)
 
 	// Add tools
@@ -67,8 +74,12 @@ func CreateServer(k8sClient *k8s.Client, config *Config) *server.MCPServer {
 	// Add resources if enabled
 	if config.ServeResources {
 		go func() {
+			// Create a timeout context for listing resources
+			timeoutCtx, cancel := context.WithTimeout(context.Background(), defaultCtxTimeout)
+			defer cancel()
+
 			// List resources in a goroutine to avoid blocking server startup
-			resources, err := impl.HandleListAllResources(context.Background())
+			resources, err := impl.HandleListAllResources(timeoutCtx)
 			if err != nil {
 				log.Printf("Failed to list resources: %v", err)
 				return
