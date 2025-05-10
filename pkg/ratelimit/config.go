@@ -1,5 +1,9 @@
 package ratelimit
 
+import (
+	"log"
+)
+
 const defaultLimit = 60
 
 // DefaultConfig defines the default rate limits for different tools
@@ -19,6 +23,8 @@ var DefaultConfig = map[string]int{
 
 // GetDefaultRateLimiter returns a RateLimiter with default configuration
 func GetDefaultRateLimiter() *RateLimiter {
+	log.Println("[RateLimit] Initializing default rate limiter")
+	
 	options := []RateLimiterOption{
 		WithDefaultLimit(DefaultConfig["default"]),
 	}
@@ -27,8 +33,13 @@ func GetDefaultRateLimiter() *RateLimiter {
 	for tool, limit := range DefaultConfig {
 		if tool != "default" {
 			options = append(options, WithToolLimit(tool, limit))
+			log.Printf("[RateLimit] Setting limit for tool '%s': %d requests/minute", tool, limit)
 		}
 	}
 
-	return NewRateLimiter(options...)
+	log.Printf("[RateLimit] Default limit set to: %d requests/minute", DefaultConfig["default"])
+	limiter := NewRateLimiter(options...)
+	log.Println("[RateLimit] Rate limiter initialized successfully")
+	
+	return limiter
 }

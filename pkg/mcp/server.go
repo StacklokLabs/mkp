@@ -65,15 +65,24 @@ func CreateServer(k8sClient *k8s.Client, config *Config) *server.MCPServer {
 
 	// Add rate limiting middleware if enabled
 	if config.EnableRateLimiting {
-		// Create and store the rate limiter for later cleanup
+		log.Println("[Server] Rate limiting is enabled, initializing rate limiter")
+		// Create and store the rate limiter for cleanup
 		limiter := ratelimit.GetDefaultRateLimiter()
+		log.Println("[Server] Rate limiter created successfully")
 
 		// Store the limiter for cleanup when the server is stopped
 		resources = &serverResources{
 			rateLimiter: limiter,
 		}
+		log.Println("[Server] Rate limiter stored in server resources")
 
-		options = append(options, server.WithToolHandlerMiddleware(limiter.Middleware()))
+		// Add the middleware to the server options
+		middleware := limiter.Middleware()
+		log.Println("[Server] Rate limiting middleware created")
+		options = append(options, server.WithToolHandlerMiddleware(middleware))
+		log.Println("[Server] Rate limiting middleware added to server options")
+	} else {
+		log.Println("[Server] Rate limiting is disabled")
 	}
 
 	// Create MCP server with all options
