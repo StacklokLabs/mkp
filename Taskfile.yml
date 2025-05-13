@@ -22,7 +22,7 @@ tasks:
     cmds:
       - ./{{.BUILD_DIR}}/{{.BINARY_NAME}}
 
-    lint:
+  lint:
     desc: Run linting tools
     cmds:
       - golangci-lint run ./...
