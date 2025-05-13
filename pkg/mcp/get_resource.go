@@ -10,6 +10,8 @@ import (
 )
 
 // HandleGetResource handles the get_resource tool
+//
+//nolint:gocyclo // This is deemed a complex function, but realistically it's not too bad
 func (m *Implementation) HandleGetResource(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	// Parse parameters
 	resourceType := mcp.ParseString(request, "resource_type", "")
@@ -48,13 +50,13 @@ func (m *Implementation) HandleGetResource(ctx context.Context, request mcp.Call
 	if name == "" {
 		return mcp.NewToolResultError("name is required"), nil
 	}
-	if resourceType == "namespaced" && namespace == "" {
+	if resourceType == ResourceTypeNamespaced && namespace == "" {
 		return mcp.NewToolResultError("namespace is required for namespaced resources"), nil
 	}
 
 	// Create GVR
 	// Validate resource_type
-	if resourceType != "clustered" && resourceType != "namespaced" {
+	if resourceType != "clustered" && resourceType != ResourceTypeNamespaced {
 		return mcp.NewToolResultError("Invalid resource_type: " + resourceType), nil
 	}
 
@@ -102,7 +104,8 @@ func NewGetResourceTool() mcp.Tool {
 		mcp.WithString("subresource",
 			mcp.Description("Subresource to get (e.g., status, scale, logs)")),
 		mcp.WithObject("parameters",
-			mcp.Description("Optional parameters for the request. For regular resources: resourceVersion. For pod logs: container, previous, sinceSeconds, sinceTime, timestamps, limitBytes, tailLines")),
+			mcp.Description(`Optional parameters for the request. For regular resources: resourceVersion. 
+			For pod logs: container, previous, sinceSeconds, sinceTime, timestamps, limitBytes, tailLines`)),
 		mcp.WithToolAnnotation(mcp.ToolAnnotation{
 			Title:        "Get Kubernetes resource",
 			ReadOnlyHint: true,

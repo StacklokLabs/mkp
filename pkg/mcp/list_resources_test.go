@@ -19,6 +19,9 @@ import (
 	"github.com/StacklokLabs/mkp/pkg/k8s"
 )
 
+// Import tools constants
+var _ = ListResourcesToolName
+
 func TestHandleListResourcesClusteredSuccess(t *testing.T) {
 	// Create a mock k8s client
 	mockClient := &k8s.Client{}
@@ -34,7 +37,7 @@ func TestHandleListResourcesClusteredSuccess(t *testing.T) {
 	fakeDynamicClient := fake.NewSimpleDynamicClientWithCustomListKinds(scheme, listKinds)
 
 	// Add a fake list response
-	fakeDynamicClient.PrependReactor("list", "clusterroles", func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
+	fakeDynamicClient.PrependReactor("list", "clusterroles", func(_ ktesting.Action) (handled bool, ret runtime.Object, err error) {
 		list := &unstructured.UnstructuredList{
 			Items: []unstructured.Unstructured{
 				{
@@ -66,7 +69,7 @@ func TestHandleListResourcesClusteredSuccess(t *testing.T) {
 
 	// Create a test request
 	request := mcp.CallToolRequest{}
-	request.Params.Name = "list_resources"
+	request.Params.Name = ListResourcesToolName
 	request.Params.Arguments = map[string]interface{}{
 		"resource_type": "clustered",
 		"group":         "rbac.authorization.k8s.io",
@@ -111,7 +114,7 @@ func TestHandleListResourcesNamespacedSuccess(t *testing.T) {
 	fakeDynamicClient := fake.NewSimpleDynamicClientWithCustomListKinds(scheme, listKinds)
 
 	// Add a fake list response
-	fakeDynamicClient.PrependReactor("list", "services", func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
+	fakeDynamicClient.PrependReactor("list", "services", func(_ ktesting.Action) (handled bool, ret runtime.Object, err error) {
 		list := &unstructured.UnstructuredList{
 			Items: []unstructured.Unstructured{
 				{
@@ -145,9 +148,9 @@ func TestHandleListResourcesNamespacedSuccess(t *testing.T) {
 
 	// Create a test request
 	request := mcp.CallToolRequest{}
-	request.Params.Name = "list_resources"
+	request.Params.Name = ListResourcesToolName
 	request.Params.Arguments = map[string]interface{}{
-		"resource_type": "namespaced",
+		"resource_type": ResourceTypeNamespaced,
 		"group":         "",
 		"version":       "v1",
 		"resource":      "services",
@@ -219,7 +222,7 @@ func TestHandleListResourcesMissingParameters(t *testing.T) {
 		{
 			name: "Missing namespace for namespaced resource",
 			arguments: map[string]interface{}{
-				"resource_type": "namespaced",
+				"resource_type": ResourceTypeNamespaced,
 				"group":         "apps",
 				"version":       "v1",
 				"resource":      "deployments",
@@ -232,7 +235,7 @@ func TestHandleListResourcesMissingParameters(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Create a test request
 			request := mcp.CallToolRequest{}
-			request.Params.Name = "list_resources"
+			request.Params.Name = ListResourcesToolName
 			request.Params.Arguments = tc.arguments
 
 			// Test HandleListResources
@@ -265,7 +268,7 @@ func TestHandleListResourcesInvalidResourceType(t *testing.T) {
 
 	// Create a test request with invalid resource_type
 	request := mcp.CallToolRequest{}
-	request.Params.Name = "list_resources"
+	request.Params.Name = ListResourcesToolName
 	request.Params.Arguments = map[string]interface{}{
 		"resource_type": "invalid",
 		"group":         "apps",
@@ -307,7 +310,7 @@ func TestHandleListResourcesListError(t *testing.T) {
 	fakeDynamicClient := fake.NewSimpleDynamicClientWithCustomListKinds(scheme, listKinds)
 
 	// Add a fake list response with error
-	fakeDynamicClient.PrependReactor("list", "clusterroles", func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
+	fakeDynamicClient.PrependReactor("list", "clusterroles", func(_ ktesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, nil, fmt.Errorf("failed to list resources")
 	})
 
@@ -319,7 +322,7 @@ func TestHandleListResourcesListError(t *testing.T) {
 
 	// Create a test request
 	request := mcp.CallToolRequest{}
-	request.Params.Name = "list_resources"
+	request.Params.Name = ListResourcesToolName
 	request.Params.Arguments = map[string]interface{}{
 		"resource_type": "clustered",
 		"group":         "rbac.authorization.k8s.io",
@@ -450,7 +453,7 @@ func TestHandleListAllResourcesError(t *testing.T) {
 
 	// Create a fake discovery client that returns an error
 	fakeDiscoveryClient := &discoveryfake.FakeDiscovery{Fake: &ktesting.Fake{}}
-	fakeDiscoveryClient.AddReactor("*", "*", func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
+	fakeDiscoveryClient.AddReactor("*", "*", func(_ ktesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, nil, fmt.Errorf("failed to list API resources")
 	})
 
@@ -489,7 +492,7 @@ func TestHandleListResourcesWithLastAppliedConfig(t *testing.T) {
 	fakeDynamicClient := fake.NewSimpleDynamicClientWithCustomListKinds(scheme, listKinds)
 
 	// Add a fake list response with the last-applied-configuration annotation
-	fakeDynamicClient.PrependReactor("list", "deployments", func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
+	fakeDynamicClient.PrependReactor("list", "deployments", func(_ ktesting.Action) (handled bool, ret runtime.Object, err error) {
 		// Create a large last-applied-configuration annotation
 		lastAppliedConfig := `{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"name":"test-deployment","namespace":"default"},"spec":{"replicas":3,"selector":{"matchLabels":{"app":"test"}},"template":{"metadata":{"labels":{"app":"test"}},"spec":{"containers":[{"name":"test-container","image":"nginx:latest","ports":[{"containerPort":80}]}]}}}}`
 
@@ -550,9 +553,9 @@ func TestHandleListResourcesWithLastAppliedConfig(t *testing.T) {
 
 	// Create a test request
 	request := mcp.CallToolRequest{}
-	request.Params.Name = "list_resources"
+	request.Params.Name = ListResourcesToolName
 	request.Params.Arguments = map[string]interface{}{
-		"resource_type": "namespaced",
+		"resource_type": ResourceTypeNamespaced,
 		"group":         "apps",
 		"version":       "v1",
 		"resource":      "deployments",

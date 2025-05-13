@@ -16,7 +16,7 @@ import (
 )
 
 // mockGetConfig is a mock function for getConfig
-func mockGetConfig(kubeconfigPath string) (*rest.Config, error) {
+func mockGetConfig(_ string) (*rest.Config, error) {
 	return &rest.Config{
 		Host: "https://mock-server",
 	}, nil
@@ -121,7 +121,7 @@ func TestPeriodicRefreshActuallyRefreshes(t *testing.T) {
 
 	// Create a counter to track how many times getConfig is called
 	refreshCount := 0
-	getConfig = func(kubeconfigPath string) (*rest.Config, error) {
+	getConfig = func(_ string) (*rest.Config, error) {
 		refreshCount++
 		return &rest.Config{
 			Host: "https://mock-server",

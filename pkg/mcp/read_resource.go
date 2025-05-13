@@ -116,7 +116,10 @@ func parseNamespacedResourceURI(uri string) (ResourceURIComponents, error) {
 }
 
 // HandleClusteredResource handles the clustered resource template
-func (m *Implementation) HandleClusteredResource(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
+func (m *Implementation) HandleClusteredResource(
+	ctx context.Context,
+	request mcp.ReadResourceRequest,
+) ([]mcp.ResourceContents, error) {
 	// Parse the URI
 	components, err := parseClusteredResourceURI(request.Params.URI)
 	if err != nil {
@@ -152,7 +155,10 @@ func (m *Implementation) HandleClusteredResource(ctx context.Context, request mc
 }
 
 // HandleNamespacedResource handles the namespaced resource template
-func (m *Implementation) HandleNamespacedResource(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
+func (m *Implementation) HandleNamespacedResource(
+	ctx context.Context,
+	request mcp.ReadResourceRequest,
+) ([]mcp.ResourceContents, error) {
 	// Parse the URI
 	components, err := parseNamespacedResourceURI(request.Params.URI)
 	if err != nil {

@@ -28,7 +28,7 @@ func TestHandleGetResourceClusteredSuccess(t *testing.T) {
 	// Add a fake get response
 	fakeDynamicClient.PrependReactor("get", "deployments", func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
 		getAction := action.(ktesting.GetAction)
-		if getAction.GetName() == "test-deployment" {
+		if getAction.GetName() == TestDeploymentName {
 			return true, &unstructured.Unstructured{
 				Object: map[string]interface{}{
 					"apiVersion": "apps/v1",
@@ -53,7 +53,7 @@ func TestHandleGetResourceClusteredSuccess(t *testing.T) {
 
 	// Create a test request
 	request := mcp.CallToolRequest{}
-	request.Params.Name = "get_resource"
+	request.Params.Name = GetResourceToolName
 	request.Params.Arguments = map[string]interface{}{
 		"resource_type": "clustered",
 		"group":         "apps",
@@ -93,7 +93,7 @@ func TestHandleGetResourceNamespacedSuccess(t *testing.T) {
 	// Add a fake get response
 	fakeDynamicClient.PrependReactor("get", "deployments", func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
 		getAction := action.(ktesting.GetAction)
-		if getAction.GetName() == "test-deployment" && getAction.GetNamespace() == "default" {
+		if getAction.GetName() == TestDeploymentName && getAction.GetNamespace() == "default" {
 			return true, &unstructured.Unstructured{
 				Object: map[string]interface{}{
 					"apiVersion": "apps/v1",
@@ -119,9 +119,9 @@ func TestHandleGetResourceNamespacedSuccess(t *testing.T) {
 
 	// Create a test request
 	request := mcp.CallToolRequest{}
-	request.Params.Name = "get_resource"
+	request.Params.Name = GetResourceToolName
 	request.Params.Arguments = map[string]interface{}{
-		"resource_type": "namespaced",
+		"resource_type": ResourceTypeNamespaced,
 		"group":         "apps",
 		"version":       "v1",
 		"resource":      "deployments",
@@ -161,7 +161,7 @@ func TestHandleGetResourceWithParameters(t *testing.T) {
 	mockClient.SetDynamicClient(fakeDynamicClient)
 
 	// Create a mock implementation for getPodLogs that verifies parameters
-	mockGetPodLogs := func(ctx context.Context, namespace, name string, parameters map[string]string) (*unstructured.Unstructured, error) {
+	mockGetPodLogs := func(_ context.Context, namespace, name string, parameters map[string]string) (*unstructured.Unstructured, error) {
 		// Verify parameters were passed correctly
 		assert.Equal(t, "test-pod", name)
 		assert.Equal(t, "default", namespace)
@@ -198,9 +198,9 @@ func TestHandleGetResourceWithParameters(t *testing.T) {
 
 	// Create a test request with parameters
 	request := mcp.CallToolRequest{}
-	request.Params.Name = "get_resource"
+	request.Params.Name = GetResourceToolName
 	request.Params.Arguments = map[string]interface{}{
-		"resource_type": "namespaced",
+		"resource_type": ResourceTypeNamespaced,
 		"group":         "",
 		"version":       "v1",
 		"resource":      "pods",
@@ -245,7 +245,7 @@ func TestHandleGetResourceWithSubresource(t *testing.T) {
 	// Note: The fake client doesn't fully support subresources, so we're simulating it
 	fakeDynamicClient.PrependReactor("get", "deployments/status", func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
 		getAction := action.(ktesting.GetAction)
-		if getAction.GetName() == "test-deployment" && getAction.GetNamespace() == "default" {
+		if getAction.GetName() == TestDeploymentName && getAction.GetNamespace() == "default" {
 			return true, &unstructured.Unstructured{
 				Object: map[string]interface{}{
 					"apiVersion": "apps/v1",
@@ -272,9 +272,9 @@ func TestHandleGetResourceWithSubresource(t *testing.T) {
 
 	// Create a test request
 	request := mcp.CallToolRequest{}
-	request.Params.Name = "get_resource"
+	request.Params.Name = GetResourceToolName
 	request.Params.Arguments = map[string]interface{}{
-		"resource_type": "namespaced",
+		"resource_type": ResourceTypeNamespaced,
 		"group":         "apps",
 		"version":       "v1",
 		"resource":      "deployments",
@@ -368,7 +368,7 @@ func TestHandleGetResourceMissingParameters(t *testing.T) {
 		{
 			name: "Missing namespace for namespaced resource",
 			arguments: map[string]interface{}{
-				"resource_type": "namespaced",
+				"resource_type": ResourceTypeNamespaced,
 				"group":         "apps",
 				"version":       "v1",
 				"resource":      "deployments",
@@ -382,7 +382,7 @@ func TestHandleGetResourceMissingParameters(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Create a test request
 			request := mcp.CallToolRequest{}
-			request.Params.Name = "get_resource"
+			request.Params.Name = GetResourceToolName
 			request.Params.Arguments = tc.arguments
 
 			// Test HandleGetResource
@@ -415,7 +415,7 @@ func TestHandleGetResourceInvalidResourceType(t *testing.T) {
 
 	// Create a test request with invalid resource_type
 	request := mcp.CallToolRequest{}
-	request.Params.Name = "get_resource"
+	request.Params.Name = GetResourceToolName
 	request.Params.Arguments = map[string]interface{}{
 		"resource_type": "invalid",
 		"group":         "apps",

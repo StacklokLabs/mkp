@@ -23,7 +23,7 @@ func TestHandleDeleteResourceClusteredSuccess(t *testing.T) {
 	fakeDynamicClient := fake.NewSimpleDynamicClient(scheme)
 
 	// Add a fake delete response
-	fakeDynamicClient.PrependReactor("delete", "clusterroles", func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
+	fakeDynamicClient.PrependReactor("delete", "clusterroles", func(_ ktesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, nil, nil
 	})
 
@@ -35,7 +35,7 @@ func TestHandleDeleteResourceClusteredSuccess(t *testing.T) {
 
 	// Create a test request
 	request := mcp.CallToolRequest{}
-	request.Params.Name = "delete_resource"
+	request.Params.Name = DeleteResourceToolName
 	request.Params.Arguments = map[string]interface{}{
 		"resource_type": "clustered",
 		"group":         "rbac.authorization.k8s.io",
@@ -72,7 +72,7 @@ func TestHandleDeleteResourceNamespacedSuccess(t *testing.T) {
 	fakeDynamicClient := fake.NewSimpleDynamicClient(scheme)
 
 	// Add a fake delete response
-	fakeDynamicClient.PrependReactor("delete", "services", func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
+	fakeDynamicClient.PrependReactor("delete", "services", func(_ ktesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, nil, nil
 	})
 
@@ -84,9 +84,9 @@ func TestHandleDeleteResourceNamespacedSuccess(t *testing.T) {
 
 	// Create a test request
 	request := mcp.CallToolRequest{}
-	request.Params.Name = "delete_resource"
+	request.Params.Name = DeleteResourceToolName
 	request.Params.Arguments = map[string]interface{}{
-		"resource_type": "namespaced",
+		"resource_type": ResourceTypeNamespaced,
 		"group":         "",
 		"version":       "v1",
 		"resource":      "services",
@@ -169,7 +169,7 @@ func TestHandleDeleteResourceMissingParameters(t *testing.T) {
 		{
 			name: "Missing namespace for namespaced resource",
 			arguments: map[string]interface{}{
-				"resource_type": "namespaced",
+				"resource_type": ResourceTypeNamespaced,
 				"group":         "apps",
 				"version":       "v1",
 				"resource":      "deployments",
@@ -183,7 +183,7 @@ func TestHandleDeleteResourceMissingParameters(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Create a test request
 			request := mcp.CallToolRequest{}
-			request.Params.Name = "delete_resource"
+			request.Params.Name = DeleteResourceToolName
 			request.Params.Arguments = tc.arguments
 
 			// Test HandleDeleteResource
@@ -216,7 +216,7 @@ func TestHandleDeleteResourceInvalidResourceType(t *testing.T) {
 
 	// Create a test request with invalid resource_type
 	request := mcp.CallToolRequest{}
-	request.Params.Name = "delete_resource"
+	request.Params.Name = DeleteResourceToolName
 	request.Params.Arguments = map[string]interface{}{
 		"resource_type": "invalid",
 		"group":         "apps",
@@ -253,7 +253,7 @@ func TestHandleDeleteResourceDeleteError(t *testing.T) {
 	fakeDynamicClient := fake.NewSimpleDynamicClient(scheme)
 
 	// Add a fake delete response with error
-	fakeDynamicClient.PrependReactor("delete", "clusterroles", func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
+	fakeDynamicClient.PrependReactor("delete", "clusterroles", func(_ ktesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, nil, fmt.Errorf("failed to delete resource")
 	})
 
@@ -265,7 +265,7 @@ func TestHandleDeleteResourceDeleteError(t *testing.T) {
 
 	// Create a test request
 	request := mcp.CallToolRequest{}
-	request.Params.Name = "delete_resource"
+	request.Params.Name = DeleteResourceToolName
 	request.Params.Arguments = map[string]interface{}{
 		"resource_type": "clustered",
 		"group":         "rbac.authorization.k8s.io",

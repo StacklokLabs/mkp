@@ -40,7 +40,7 @@ func TestListClusteredResources(t *testing.T) {
 	}
 
 	// Add a fake list response
-	client.PrependReactor("list", "clusterroles", func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
+	client.PrependReactor("list", "clusterroles", func(_ ktesting.Action) (handled bool, ret runtime.Object, err error) {
 		list := &unstructured.UnstructuredList{
 			Items: []unstructured.Unstructured{
 				{
@@ -129,7 +129,7 @@ func TestListNamespacedResources(t *testing.T) {
 	}
 
 	// Add a fake list response
-	client.PrependReactor("list", "services", func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
+	client.PrependReactor("list", "services", func(_ ktesting.Action) (handled bool, ret runtime.Object, err error) {
 		list := &unstructured.UnstructuredList{
 			Items: []unstructured.Unstructured{
 				{
@@ -234,12 +234,12 @@ func TestApplyClusteredResource(t *testing.T) {
 	}
 
 	// Add a fake get response (resource not found)
-	client.PrependReactor("get", "clusterroles", func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
+	client.PrependReactor("get", "clusterroles", func(_ ktesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, nil, fmt.Errorf("not found: clusterroles \"test-cluster-role\" not found")
 	})
 
 	// Add a fake create response
-	client.PrependReactor("create", "clusterroles", func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
+	client.PrependReactor("create", "clusterroles", func(_ ktesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, obj, nil
 	})
 
@@ -293,12 +293,12 @@ func TestApplyNamespacedResource(t *testing.T) {
 	}
 
 	// Add a fake get response (resource not found)
-	client.PrependReactor("get", "services", func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
+	client.PrependReactor("get", "services", func(_ ktesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, nil, fmt.Errorf("not found: services \"test-service\" not found")
 	})
 
 	// Add a fake create response
-	client.PrependReactor("create", "services", func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
+	client.PrependReactor("create", "services", func(_ ktesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, obj, nil
 	})
 
@@ -349,7 +349,7 @@ func TestGetClusteredResource(t *testing.T) {
 	}
 
 	// Add a fake get response
-	client.PrependReactor("get", "clusterroles", func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
+	client.PrependReactor("get", "clusterroles", func(_ ktesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, obj, nil
 	})
 
@@ -404,7 +404,7 @@ func TestGetNamespacedResource(t *testing.T) {
 	}
 
 	// Add a fake get response
-	client.PrependReactor("get", "services", func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
+	client.PrependReactor("get", "services", func(_ ktesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, obj, nil
 	})
 

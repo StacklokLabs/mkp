@@ -41,7 +41,7 @@ func (m *Implementation) HandleListResources(ctx context.Context, request mcp.Ca
 	if resource == "" {
 		return mcp.NewToolResultError("resource is required"), nil
 	}
-	if resourceType == "namespaced" && namespace == "" {
+	if resourceType == ResourceTypeNamespaced && namespace == "" {
 		return mcp.NewToolResultError("namespace is required for namespaced resources"), nil
 	}
 	if labelSelector != "" {
@@ -64,7 +64,7 @@ func (m *Implementation) HandleListResources(ctx context.Context, request mcp.Ca
 	switch resourceType {
 	case "clustered":
 		list, err = m.k8sClient.ListClusteredResources(ctx, gvr, labelSelector)
-	case "namespaced":
+	case ResourceTypeNamespaced:
 		list, err = m.k8sClient.ListNamespacedResources(ctx, gvr, namespace, labelSelector)
 	default:
 		return mcp.NewToolResultError(fmt.Sprintf("Invalid resource_type: %s", resourceType)), nil

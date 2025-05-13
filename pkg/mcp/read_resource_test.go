@@ -64,7 +64,7 @@ func TestHandleClusteredResource(t *testing.T) {
 	}
 
 	// Add a fake get response
-	fakeDynamicClient.PrependReactor("get", "clusterroles", func(action testingfake.Action) (handled bool, ret runtime.Object, err error) {
+	fakeDynamicClient.PrependReactor("get", "clusterroles", func(_ testingfake.Action) (handled bool, ret runtime.Object, err error) {
 		return true, clusterRole, nil
 	})
 
@@ -150,7 +150,7 @@ func TestHandleNamespacedResource(t *testing.T) {
 	}
 
 	// Add a fake get response
-	fakeDynamicClient.PrependReactor("get", "services", func(action testingfake.Action) (handled bool, ret runtime.Object, err error) {
+	fakeDynamicClient.PrependReactor("get", "services", func(_ testingfake.Action) (handled bool, ret runtime.Object, err error) {
 		return true, service, nil
 	})
 
@@ -237,7 +237,7 @@ func TestHandleCoreClusteredResource(t *testing.T) {
 	}
 
 	// Add a fake get response
-	fakeDynamicClient.PrependReactor("get", "persistentvolumes", func(action testingfake.Action) (handled bool, ret runtime.Object, err error) {
+	fakeDynamicClient.PrependReactor("get", "persistentvolumes", func(_ testingfake.Action) (handled bool, ret runtime.Object, err error) {
 		return true, pv, nil
 	})
 
@@ -324,7 +324,7 @@ func TestHandleNamespacedResourceSingleSlash(t *testing.T) {
 	}
 
 	// Add a fake get response
-	fakeDynamicClient.PrependReactor("get", "deployments", func(action testingfake.Action) (handled bool, ret runtime.Object, err error) {
+	fakeDynamicClient.PrependReactor("get", "deployments", func(_ testingfake.Action) (handled bool, ret runtime.Object, err error) {
 		return true, deployment, nil
 	})
 
@@ -553,7 +553,7 @@ func TestHandleClusteredResourceErrors(t *testing.T) {
 		{
 			name: "Invalid URI format",
 			uri:  "invalid://clustered/rbac.authorization.k8s.io/v1/clusterroles/test-cluster-role",
-			setupMock: func(mockClient *k8s.Client) {
+			setupMock: func(_ *k8s.Client) {
 				// No setup needed
 			},
 			expectError:  true,
@@ -568,7 +568,7 @@ func TestHandleClusteredResourceErrors(t *testing.T) {
 				fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme)
 
 				// Add a fake get response with error
-				fakeDynamicClient.PrependReactor("get", "clusterroles", func(action testingfake.Action) (handled bool, ret runtime.Object, err error) {
+				fakeDynamicClient.PrependReactor("get", "clusterroles", func(_ testingfake.Action) (handled bool, ret runtime.Object, err error) {
 					return true, nil, fmt.Errorf("resource not found")
 				})
 
@@ -622,7 +622,7 @@ func TestHandleNamespacedResourceErrors(t *testing.T) {
 		{
 			name: "Invalid URI format",
 			uri:  "invalid://namespaced/default/apps/v1/deployments/test-deployment",
-			setupMock: func(mockClient *k8s.Client) {
+			setupMock: func(_ *k8s.Client) {
 				// No setup needed
 			},
 			expectError:  true,
@@ -637,7 +637,7 @@ func TestHandleNamespacedResourceErrors(t *testing.T) {
 				fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme)
 
 				// Add a fake get response with error
-				fakeDynamicClient.PrependReactor("get", "deployments", func(action testingfake.Action) (handled bool, ret runtime.Object, err error) {
+				fakeDynamicClient.PrependReactor("get", "deployments", func(_ testingfake.Action) (handled bool, ret runtime.Object, err error) {
 					return true, nil, fmt.Errorf("resource not found")
 				})
 

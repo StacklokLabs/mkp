@@ -55,7 +55,7 @@ func TestHandleListResources(t *testing.T) {
 	}
 
 	// Add a fake list response
-	mockClient.dynamicClient.PrependReactor("list", "deployments", func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
+	mockClient.dynamicClient.PrependReactor("list", "deployments", func(_ ktesting.Action) (handled bool, ret runtime.Object, err error) {
 		list := &unstructured.UnstructuredList{
 			Items: []unstructured.Unstructured{
 				{
@@ -132,12 +132,12 @@ func TestHandleApplyResource(t *testing.T) {
 	}
 
 	// Add a fake get response (resource not found)
-	mockClient.dynamicClient.PrependReactor("get", "deployments", func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
+	mockClient.dynamicClient.PrependReactor("get", "deployments", func(_ ktesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, nil, fmt.Errorf("not found: deployments \"test-deployment\" not found")
 	})
 
 	// Add a fake create response
-	mockClient.dynamicClient.PrependReactor("create", "deployments", func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
+	mockClient.dynamicClient.PrependReactor("create", "deployments", func(_ ktesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, obj, nil
 	})
 
@@ -196,7 +196,7 @@ func TestCallTool(t *testing.T) {
 	mockClient.SetDynamicClient(mockClient.dynamicClient)
 
 	// Add a fake list response
-	mockClient.dynamicClient.PrependReactor("list", "deployments", func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
+	mockClient.dynamicClient.PrependReactor("list", "deployments", func(_ ktesting.Action) (handled bool, ret runtime.Object, err error) {
 		list := &unstructured.UnstructuredList{
 			Items: []unstructured.Unstructured{
 				{
@@ -228,7 +228,7 @@ func TestCallTool(t *testing.T) {
 	ctx := context.Background()
 	// Create a CallToolRequest
 	callToolRequest := mcp.CallToolRequest{}
-	callToolRequest.Params.Name = "list_resources"
+	callToolRequest.Params.Name = ListResourcesToolName
 	callToolRequest.Params.Arguments = requestParams["arguments"].(map[string]interface{})
 
 	// Call the appropriate handler directly

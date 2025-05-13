@@ -42,12 +42,12 @@ func TestHandleApplyResourceClusteredSuccess(t *testing.T) {
 	}
 
 	// Add a fake get response (resource not found)
-	fakeDynamicClient.PrependReactor("get", "clusterroles", func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
+	fakeDynamicClient.PrependReactor("get", "clusterroles", func(_ ktesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, nil, fmt.Errorf("not found: clusterroles \"test-cluster-role\" not found")
 	})
 
 	// Add a fake create response
-	fakeDynamicClient.PrependReactor("create", "clusterroles", func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
+	fakeDynamicClient.PrependReactor("create", "clusterroles", func(_ ktesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, obj, nil
 	})
 
@@ -59,7 +59,7 @@ func TestHandleApplyResourceClusteredSuccess(t *testing.T) {
 
 	// Create a test request
 	request := mcp.CallToolRequest{}
-	request.Params.Name = "apply_resource"
+	request.Params.Name = ApplyResourceToolName
 	request.Params.Arguments = map[string]interface{}{
 		"resource_type": "clustered",
 		"group":         "rbac.authorization.k8s.io",
@@ -129,12 +129,12 @@ func TestHandleApplyResourceNamespacedSuccess(t *testing.T) {
 	}
 
 	// Add a fake get response (resource not found)
-	fakeDynamicClient.PrependReactor("get", "services", func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
+	fakeDynamicClient.PrependReactor("get", "services", func(_ ktesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, nil, fmt.Errorf("not found: services \"test-service\" not found")
 	})
 
 	// Add a fake create response
-	fakeDynamicClient.PrependReactor("create", "services", func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
+	fakeDynamicClient.PrependReactor("create", "services", func(_ ktesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, obj, nil
 	})
 
@@ -146,9 +146,9 @@ func TestHandleApplyResourceNamespacedSuccess(t *testing.T) {
 
 	// Create a test request
 	request := mcp.CallToolRequest{}
-	request.Params.Name = "apply_resource"
+	request.Params.Name = ApplyResourceToolName
 	request.Params.Arguments = map[string]interface{}{
-		"resource_type": "namespaced",
+		"resource_type": ResourceTypeNamespaced,
 		"group":         "",
 		"version":       "v1",
 		"resource":      "services",
@@ -236,7 +236,7 @@ func TestHandleApplyResourceMissingParameters(t *testing.T) {
 		{
 			name: "Missing namespace for namespaced resource",
 			arguments: map[string]interface{}{
-				"resource_type": "namespaced",
+				"resource_type": ResourceTypeNamespaced,
 				"group":         "apps",
 				"version":       "v1",
 				"resource":      "deployments",
@@ -260,7 +260,7 @@ func TestHandleApplyResourceMissingParameters(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Create a test request
 			request := mcp.CallToolRequest{}
-			request.Params.Name = "apply_resource"
+			request.Params.Name = ApplyResourceToolName
 			request.Params.Arguments = tc.arguments
 
 			// Test HandleApplyResource
@@ -293,7 +293,7 @@ func TestHandleApplyResourceInvalidResourceType(t *testing.T) {
 
 	// Create a test request with invalid resource_type
 	request := mcp.CallToolRequest{}
-	request.Params.Name = "apply_resource"
+	request.Params.Name = ApplyResourceToolName
 	request.Params.Arguments = map[string]interface{}{
 		"resource_type": "invalid",
 		"group":         "apps",
@@ -330,12 +330,12 @@ func TestHandleApplyResourceApplyError(t *testing.T) {
 	fakeDynamicClient := fake.NewSimpleDynamicClient(scheme)
 
 	// Add a fake get response (resource not found)
-	fakeDynamicClient.PrependReactor("get", "clusterroles", func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
+	fakeDynamicClient.PrependReactor("get", "clusterroles", func(_ ktesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, nil, fmt.Errorf("not found: clusterroles \"test-cluster-role\" not found")
 	})
 
 	// Add a fake create response with error
-	fakeDynamicClient.PrependReactor("create", "clusterroles", func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
+	fakeDynamicClient.PrependReactor("create", "clusterroles", func(_ ktesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, nil, fmt.Errorf("failed to create resource")
 	})
 
@@ -347,7 +347,7 @@ func TestHandleApplyResourceApplyError(t *testing.T) {
 
 	// Create a test request
 	request := mcp.CallToolRequest{}
-	request.Params.Name = "apply_resource"
+	request.Params.Name = ApplyResourceToolName
 	request.Params.Arguments = map[string]interface{}{
 		"resource_type": "clustered",
 		"group":         "rbac.authorization.k8s.io",

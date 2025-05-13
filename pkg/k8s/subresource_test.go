@@ -66,7 +66,7 @@ func TestGetResource(t *testing.T) {
 	client.SetClientset(fakeClientset)
 
 	// Mock the getPodLogs method
-	getPodLogsMock := func(ctx context.Context, namespace, name string, parameters map[string]string) (*unstructured.Unstructured, error) {
+	getPodLogsMock := func(_ context.Context, namespace, name string, _ map[string]string) (*unstructured.Unstructured, error) {
 		return &unstructured.Unstructured{
 			Object: map[string]interface{}{
 				"apiVersion": "v1",
@@ -194,7 +194,7 @@ func TestGetPodLogs(t *testing.T) {
 	client := &Client{}
 
 	// Create a mock implementation of getPodLogs
-	mockGetPodLogs := func(ctx context.Context, namespace, name string, parameters map[string]string) (*unstructured.Unstructured, error) {
+	mockGetPodLogs := func(_ context.Context, namespace, name string, _ map[string]string) (*unstructured.Unstructured, error) {
 		return &unstructured.Unstructured{
 			Object: map[string]interface{}{
 				"apiVersion": "v1",

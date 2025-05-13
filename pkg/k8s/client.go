@@ -1,3 +1,4 @@
+// Package k8s provides Kubernetes client functionality
 package k8s
 
 import (
@@ -18,8 +19,12 @@ import (
 	"k8s.io/client-go/util/homedir"
 )
 
-// PodLogsFunc is a function type for getting pod logs
-type PodLogsFunc func(ctx context.Context, namespace, name string, parameters map[string]string) (*unstructured.Unstructured, error)
+// PodLogsFunc is a function type for retrieving pod logs
+type PodLogsFunc func(
+	ctx context.Context,
+	namespace, name string,
+	parameters map[string]string,
+) (*unstructured.Unstructured, error)
 
 // Client represents a Kubernetes client with discovery and dynamic capabilities
 type Client struct {
@@ -102,7 +107,7 @@ func defaultConfigGetter(kubeconfigPath string) (*rest.Config, error) {
 var getConfig ConfigGetter = defaultConfigGetter
 
 // ListAPIResources returns all API resources supported by the Kubernetes API server
-func (c *Client) ListAPIResources(ctx context.Context) ([]*metav1.APIResourceList, error) {
+func (c *Client) ListAPIResources(_ context.Context) ([]*metav1.APIResourceList, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
@@ -114,7 +119,11 @@ func (c *Client) ListAPIResources(ctx context.Context) ([]*metav1.APIResourceLis
 }
 
 // ListClusteredResources returns all clustered resources of the specified group/version/kind
-func (c *Client) ListClusteredResources(ctx context.Context, gvr schema.GroupVersionResource, labelSelector string) (*unstructured.UnstructuredList, error) {
+func (c *Client) ListClusteredResources(
+	ctx context.Context,
+	gvr schema.GroupVersionResource,
+	labelSelector string,
+) (*unstructured.UnstructuredList, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
@@ -124,7 +133,12 @@ func (c *Client) ListClusteredResources(ctx context.Context, gvr schema.GroupVer
 }
 
 // ListNamespacedResources returns all namespaced resources of the specified group/version/kind in the given namespace
-func (c *Client) ListNamespacedResources(ctx context.Context, gvr schema.GroupVersionResource, namespace string, labelSelector string) (*unstructured.UnstructuredList, error) {
+func (c *Client) ListNamespacedResources(
+	ctx context.Context,
+	gvr schema.GroupVersionResource,
+	namespace string,
+	labelSelector string,
+) (*unstructured.UnstructuredList, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
@@ -134,7 +148,11 @@ func (c *Client) ListNamespacedResources(ctx context.Context, gvr schema.GroupVe
 }
 
 // ApplyClusteredResource creates or updates a clustered resource
-func (c *Client) ApplyClusteredResource(ctx context.Context, gvr schema.GroupVersionResource, obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+func (c *Client) ApplyClusteredResource(
+	ctx context.Context,
+	gvr schema.GroupVersionResource,
+	obj *unstructured.Unstructured,
+) (*unstructured.Unstructured, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
@@ -162,7 +180,11 @@ func (c *Client) GetClusteredResource(ctx context.Context, gvr schema.GroupVersi
 }
 
 // GetNamespacedResource gets a namespaced resource
-func (c *Client) GetNamespacedResource(ctx context.Context, gvr schema.GroupVersionResource, namespace, name string) (interface{}, error) {
+func (c *Client) GetNamespacedResource(
+	ctx context.Context,
+	gvr schema.GroupVersionResource,
+	namespace, name string,
+) (interface{}, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
@@ -170,7 +192,12 @@ func (c *Client) GetNamespacedResource(ctx context.Context, gvr schema.GroupVers
 }
 
 // ApplyNamespacedResource creates or updates a namespaced resource
-func (c *Client) ApplyNamespacedResource(ctx context.Context, gvr schema.GroupVersionResource, namespace string, obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+func (c *Client) ApplyNamespacedResource(
+	ctx context.Context,
+	gvr schema.GroupVersionResource,
+	namespace string,
+	obj *unstructured.Unstructured,
+) (*unstructured.Unstructured, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 

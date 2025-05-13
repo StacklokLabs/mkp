@@ -33,3 +33,4 @@ Thumbs.db
 # Kubeconfig files
 kubeconfig
 .kubeconfig
+**/.claude/settings.local.json
