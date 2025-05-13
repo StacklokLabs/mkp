@@ -26,13 +26,13 @@ func parseURI(uri, prefix string) ([]string, error) {
 	if !strings.HasPrefix(uri, prefix) {
 		return nil, fmt.Errorf("invalid URI format: missing prefix %s", prefix)
 	}
-	
+
 	// Get the path after the prefix
 	path := uri[len(prefix):]
-	
+
 	// Split the path
 	parts := strings.Split(path, "/")
-	
+
 	// Filter out empty parts (handles double slashes for empty group)
 	filteredParts := []string{}
 	for _, part := range parts {
@@ -40,7 +40,7 @@ func parseURI(uri, prefix string) ([]string, error) {
 			filteredParts = append(filteredParts, part)
 		}
 	}
-	
+
 	return filteredParts, nil
 }
 
@@ -53,14 +53,14 @@ func parseClusteredResourceURI(uri string) (ResourceURIComponents, error) {
 	if err != nil {
 		return ResourceURIComponents{}, err
 	}
-	
+
 	// Check if we have enough parts
 	if len(parts) < 3 {
 		return ResourceURIComponents{}, fmt.Errorf("invalid URI format: expected at least 3 parts after prefix, got %d", len(parts))
 	}
-	
+
 	components := ResourceURIComponents{}
-	
+
 	// Handle the case where the group is empty (core API group)
 	if len(parts) == 3 {
 		// Assume the group is empty (core API group)
@@ -75,7 +75,7 @@ func parseClusteredResourceURI(uri string) (ResourceURIComponents, error) {
 		components.Resource = parts[2]
 		components.Name = parts[3]
 	}
-	
+
 	return components, nil
 }
 
@@ -88,15 +88,15 @@ func parseNamespacedResourceURI(uri string) (ResourceURIComponents, error) {
 	if err != nil {
 		return ResourceURIComponents{}, err
 	}
-	
+
 	// Check if we have enough parts
 	if len(parts) < 4 {
 		return ResourceURIComponents{}, fmt.Errorf("invalid URI format: expected at least 4 parts after prefix, got %d", len(parts))
 	}
-	
+
 	components := ResourceURIComponents{}
 	components.Namespace = parts[0]
-	
+
 	// Handle the case where the group is empty (core API group)
 	if len(parts) == 4 {
 		// Assume the group is empty (core API group)
@@ -111,7 +111,7 @@ func parseNamespacedResourceURI(uri string) (ResourceURIComponents, error) {
 		components.Resource = parts[3]
 		components.Name = parts[4]
 	}
-	
+
 	return components, nil
 }
 
@@ -122,7 +122,7 @@ func (m *Implementation) HandleClusteredResource(ctx context.Context, request mc
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Create GVR
 	gvr := schema.GroupVersionResource{
 		Group:    components.Group,

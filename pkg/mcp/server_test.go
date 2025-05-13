@@ -16,10 +16,10 @@ import (
 func TestCreateSSEServer(t *testing.T) {
 	// Create a mock k8s client with a fake discovery client
 	mockClient := &k8s.Client{}
-	
+
 	// Create a fake discovery client
 	fakeDiscoveryClient := &discoveryfake.FakeDiscovery{Fake: &testingfake.Fake{}}
-	
+
 	// Add some fake API resources
 	fakeDiscoveryClient.Resources = []*metav1.APIResourceList{
 		{
@@ -33,14 +33,14 @@ func TestCreateSSEServer(t *testing.T) {
 			},
 		},
 	}
-	
+
 	// Set the discovery client
 	mockClient.SetDiscoveryClient(fakeDiscoveryClient)
-	
+
 	// Create a fake dynamic client
 	scheme := runtime.NewScheme()
 	fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme)
-	
+
 	// Set the dynamic client
 	mockClient.SetDynamicClient(fakeDynamicClient)
 

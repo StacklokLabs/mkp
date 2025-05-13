@@ -14,22 +14,22 @@ func TestNewListResourcesTool(t *testing.T) {
 
 	// Verify the tool has the required parameters
 	schema := tool.InputSchema
-	
+
 	// Check that the schema has the correct type
 	assert.Equal(t, "object", schema.Type, "Schema type should be 'object'")
-	
+
 	// Check that the required parameters are in the Required field
 	assert.Contains(t, schema.Required, "resource_type", "resource_type should be required")
 	assert.Contains(t, schema.Required, "version", "version should be required")
 	assert.Contains(t, schema.Required, "resource", "resource should be required")
-	
+
 	// Check that the properties exist
 	_, ok := schema.Properties["resource_type"]
 	assert.True(t, ok, "Should have 'resource_type' parameter")
-	
+
 	_, ok = schema.Properties["version"]
 	assert.True(t, ok, "Should have 'version' parameter")
-	
+
 	_, ok = schema.Properties["resource"]
 	assert.True(t, ok, "Should have 'resource' parameter")
 }
@@ -42,22 +42,22 @@ func TestNewApplyResourceTool(t *testing.T) {
 
 	// Verify the tool has the required parameters
 	schema := tool.InputSchema
-	
+
 	// Check that the schema has the correct type
 	assert.Equal(t, "object", schema.Type, "Schema type should be 'object'")
-	
+
 	// Check that the required parameters are in the Required field
 	assert.Contains(t, schema.Required, "resource_type", "resource_type should be required")
 	assert.Contains(t, schema.Required, "version", "version should be required")
 	assert.Contains(t, schema.Required, "resource", "resource should be required")
-	
+
 	// Check that the properties exist
 	_, ok := schema.Properties["resource_type"]
 	assert.True(t, ok, "Should have 'resource_type' parameter")
-	
+
 	_, ok = schema.Properties["version"]
 	assert.True(t, ok, "Should have 'version' parameter")
-	
+
 	_, ok = schema.Properties["resource"]
 	assert.True(t, ok, "Should have 'resource' parameter")
 

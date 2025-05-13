@@ -20,10 +20,10 @@ import (
 func TestHandleClusteredResource(t *testing.T) {
 	// Create a mock k8s client with a fake discovery client
 	mockClient := &k8s.Client{}
-	
+
 	// Create a fake discovery client
 	fakeDiscoveryClient := &discoveryfake.FakeDiscovery{Fake: &testingfake.Fake{}}
-	
+
 	// Add some fake API resources
 	fakeDiscoveryClient.Resources = []*metav1.APIResourceList{
 		{
@@ -37,14 +37,14 @@ func TestHandleClusteredResource(t *testing.T) {
 			},
 		},
 	}
-	
+
 	// Set the discovery client
 	mockClient.SetDiscoveryClient(fakeDiscoveryClient)
-	
+
 	// Create a fake dynamic client
 	scheme := runtime.NewScheme()
 	fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme)
-	
+
 	// Create a test ClusterRole
 	clusterRole := &unstructured.Unstructured{
 		Object: map[string]interface{}{
@@ -62,41 +62,41 @@ func TestHandleClusteredResource(t *testing.T) {
 			},
 		},
 	}
-	
+
 	// Add a fake get response
 	fakeDynamicClient.PrependReactor("get", "clusterroles", func(action testingfake.Action) (handled bool, ret runtime.Object, err error) {
 		return true, clusterRole, nil
 	})
-	
+
 	// Set the dynamic client
 	mockClient.SetDynamicClient(fakeDynamicClient)
-	
+
 	// Create an implementation
 	impl := NewImplementation(mockClient)
-	
+
 	// Create a test request
 	request := mcp.ReadResourceRequest{}
 	// URI format: k8s://clustered/{group}/{version}/{resource}/{name}
 	request.Params.URI = "k8s://clustered/rbac.authorization.k8s.io/v1/clusterroles/test-cluster-role"
-	
+
 	// Test HandleClusteredResource
 	result, err := impl.HandleClusteredResource(context.Background(), request)
-	
+
 	// Verify there was no error
 	assert.NoError(t, err, "HandleClusteredResource should not return an error")
-	
+
 	// Verify the result is not nil
 	assert.NotNil(t, result, "Result should not be nil")
-	
+
 	// Verify the result has the correct length
 	assert.Len(t, result, 1, "Result should have 1 item")
-	
+
 	// Verify the result has the correct URI
 	assert.Equal(t, request.Params.URI, result[0].(mcp.TextResourceContents).URI, "Result URI should match request URI")
-	
+
 	// Verify the result has the correct MIME type
 	assert.Equal(t, "application/json", result[0].(mcp.TextResourceContents).MIMEType, "Result MIME type should be application/json")
-	
+
 	// Verify the result contains the ClusterRole name
 	assert.Contains(t, result[0].(mcp.TextResourceContents).Text, "test-cluster-role", "Result should contain the ClusterRole name")
 }
@@ -104,10 +104,10 @@ func TestHandleClusteredResource(t *testing.T) {
 func TestHandleNamespacedResource(t *testing.T) {
 	// Create a mock k8s client with a fake discovery client
 	mockClient := &k8s.Client{}
-	
+
 	// Create a fake discovery client
 	fakeDiscoveryClient := &discoveryfake.FakeDiscovery{Fake: &testingfake.Fake{}}
-	
+
 	// Add some fake API resources
 	fakeDiscoveryClient.Resources = []*metav1.APIResourceList{
 		{
@@ -121,14 +121,14 @@ func TestHandleNamespacedResource(t *testing.T) {
 			},
 		},
 	}
-	
+
 	// Set the discovery client
 	mockClient.SetDiscoveryClient(fakeDiscoveryClient)
-	
+
 	// Create a fake dynamic client
 	scheme := runtime.NewScheme()
 	fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme)
-	
+
 	// Create a test service
 	service := &unstructured.Unstructured{
 		Object: map[string]interface{}{
@@ -148,42 +148,42 @@ func TestHandleNamespacedResource(t *testing.T) {
 			},
 		},
 	}
-	
+
 	// Add a fake get response
 	fakeDynamicClient.PrependReactor("get", "services", func(action testingfake.Action) (handled bool, ret runtime.Object, err error) {
 		return true, service, nil
 	})
-	
+
 	// Set the dynamic client
 	mockClient.SetDynamicClient(fakeDynamicClient)
-	
+
 	// Create an implementation
 	impl := NewImplementation(mockClient)
-	
+
 	// Create a test request
 	request := mcp.ReadResourceRequest{}
 	// URI format: k8s://namespaced/{namespace}/{group}/{version}/{resource}/{name}
 	// For core API group, the group is empty, but we need to include the slash
 	request.Params.URI = "k8s://namespaced/default//v1/services/test-service"
-	
+
 	// Test HandleNamespacedResource
 	result, err := impl.HandleNamespacedResource(context.Background(), request)
-	
+
 	// Verify there was no error
 	assert.NoError(t, err, "HandleNamespacedResource should not return an error")
-	
+
 	// Verify the result is not nil
 	assert.NotNil(t, result, "Result should not be nil")
-	
+
 	// Verify the result has the correct length
 	assert.Len(t, result, 1, "Result should have 1 item")
-	
+
 	// Verify the result has the correct URI
 	assert.Equal(t, request.Params.URI, result[0].(mcp.TextResourceContents).URI, "Result URI should match request URI")
-	
+
 	// Verify the result has the correct MIME type
 	assert.Equal(t, "application/json", result[0].(mcp.TextResourceContents).MIMEType, "Result MIME type should be application/json")
-	
+
 	// Verify the result contains the service name
 	assert.Contains(t, result[0].(mcp.TextResourceContents).Text, "test-service", "Result should contain the service name")
 }
@@ -191,10 +191,10 @@ func TestHandleNamespacedResource(t *testing.T) {
 func TestHandleCoreClusteredResource(t *testing.T) {
 	// Create a mock k8s client with a fake discovery client
 	mockClient := &k8s.Client{}
-	
+
 	// Create a fake discovery client
 	fakeDiscoveryClient := &discoveryfake.FakeDiscovery{Fake: &testingfake.Fake{}}
-	
+
 	// Add some fake API resources
 	fakeDiscoveryClient.Resources = []*metav1.APIResourceList{
 		{
@@ -208,14 +208,14 @@ func TestHandleCoreClusteredResource(t *testing.T) {
 			},
 		},
 	}
-	
+
 	// Set the discovery client
 	mockClient.SetDiscoveryClient(fakeDiscoveryClient)
-	
+
 	// Create a fake dynamic client
 	scheme := runtime.NewScheme()
 	fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme)
-	
+
 	// Create a test PersistentVolume
 	pv := &unstructured.Unstructured{
 		Object: map[string]interface{}{
@@ -235,42 +235,42 @@ func TestHandleCoreClusteredResource(t *testing.T) {
 			},
 		},
 	}
-	
+
 	// Add a fake get response
 	fakeDynamicClient.PrependReactor("get", "persistentvolumes", func(action testingfake.Action) (handled bool, ret runtime.Object, err error) {
 		return true, pv, nil
 	})
-	
+
 	// Set the dynamic client
 	mockClient.SetDynamicClient(fakeDynamicClient)
-	
+
 	// Create an implementation
 	impl := NewImplementation(mockClient)
-	
+
 	// Create a test request
 	request := mcp.ReadResourceRequest{}
 	// URI format: k8s://clustered/{group}/{version}/{resource}/{name}
 	// For core API group, the group is empty, but we need to include the slash
 	request.Params.URI = "k8s://clustered//v1/persistentvolumes/test-pv"
-	
+
 	// Test HandleClusteredResource
 	result, err := impl.HandleClusteredResource(context.Background(), request)
-	
+
 	// Verify there was no error
 	assert.NoError(t, err, "HandleClusteredResource should not return an error")
-	
+
 	// Verify the result is not nil
 	assert.NotNil(t, result, "Result should not be nil")
-	
+
 	// Verify the result has the correct length
 	assert.Len(t, result, 1, "Result should have 1 item")
-	
+
 	// Verify the result has the correct URI
 	assert.Equal(t, request.Params.URI, result[0].(mcp.TextResourceContents).URI, "Result URI should match request URI")
-	
+
 	// Verify the result has the correct MIME type
 	assert.Equal(t, "application/json", result[0].(mcp.TextResourceContents).MIMEType, "Result MIME type should be application/json")
-	
+
 	// Verify the result contains the PV name
 	assert.Contains(t, result[0].(mcp.TextResourceContents).Text, "test-pv", "Result should contain the PV name")
 }
@@ -278,10 +278,10 @@ func TestHandleCoreClusteredResource(t *testing.T) {
 func TestHandleNamespacedResourceSingleSlash(t *testing.T) {
 	// Create a mock k8s client with a fake discovery client
 	mockClient := &k8s.Client{}
-	
+
 	// Create a fake discovery client
 	fakeDiscoveryClient := &discoveryfake.FakeDiscovery{Fake: &testingfake.Fake{}}
-	
+
 	// Add some fake API resources
 	fakeDiscoveryClient.Resources = []*metav1.APIResourceList{
 		{
@@ -295,14 +295,14 @@ func TestHandleNamespacedResourceSingleSlash(t *testing.T) {
 			},
 		},
 	}
-	
+
 	// Set the discovery client
 	mockClient.SetDiscoveryClient(fakeDiscoveryClient)
-	
+
 	// Create a fake dynamic client
 	scheme := runtime.NewScheme()
 	fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme)
-	
+
 	// Create a test deployment
 	deployment := &unstructured.Unstructured{
 		Object: map[string]interface{}{
@@ -322,42 +322,42 @@ func TestHandleNamespacedResourceSingleSlash(t *testing.T) {
 			},
 		},
 	}
-	
+
 	// Add a fake get response
 	fakeDynamicClient.PrependReactor("get", "deployments", func(action testingfake.Action) (handled bool, ret runtime.Object, err error) {
 		return true, deployment, nil
 	})
-	
+
 	// Set the dynamic client
 	mockClient.SetDynamicClient(fakeDynamicClient)
-	
+
 	// Create an implementation
 	impl := NewImplementation(mockClient)
-	
+
 	// Create a test request
 	request := mcp.ReadResourceRequest{}
 	// URI format: k8s://namespaced/{namespace}/{group}/{version}/{resource}/{name}
 	// Using a single slash for the group/version
 	request.Params.URI = "k8s://namespaced/default/apps/v1/deployments/test-deployment"
-	
+
 	// Test HandleNamespacedResource
 	result, err := impl.HandleNamespacedResource(context.Background(), request)
-	
+
 	// Verify there was no error
 	assert.NoError(t, err, "HandleNamespacedResource should not return an error")
-	
+
 	// Verify the result is not nil
 	assert.NotNil(t, result, "Result should not be nil")
-	
+
 	// Verify the result has the correct length
 	assert.Len(t, result, 1, "Result should have 1 item")
-	
+
 	// Verify the result has the correct URI
 	assert.Equal(t, request.Params.URI, result[0].(mcp.TextResourceContents).URI, "Result URI should match request URI")
-	
+
 	// Verify the result has the correct MIME type
 	assert.Equal(t, "application/json", result[0].(mcp.TextResourceContents).MIMEType, "Result MIME type should be application/json")
-	
+
 	// Verify the result contains the deployment name
 	assert.Contains(t, result[0].(mcp.TextResourceContents).Text, "test-deployment", "Result should contain the deployment name")
 }
@@ -393,11 +393,11 @@ func TestParseURI(t *testing.T) {
 			errorMessage: "invalid URI format: missing prefix k8s://clustered/",
 		},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			parts, err := parseURI(tc.uri, tc.prefix)
-			
+
 			if tc.expectError {
 				assert.Error(t, err, "parseURI should return an error")
 				assert.Equal(t, tc.errorMessage, err.Error(), "Error message should match")
@@ -412,11 +412,11 @@ func TestParseURI(t *testing.T) {
 func TestParseClusteredResourceURI(t *testing.T) {
 	// Test cases for parseClusteredResourceURI
 	testCases := []struct {
-		name              string
-		uri               string
+		name               string
+		uri                string
 		expectedComponents ResourceURIComponents
-		expectError       bool
-		errorMessage      string
+		expectError        bool
+		errorMessage       string
 	}{
 		{
 			name: "Valid URI with group",
@@ -455,11 +455,11 @@ func TestParseClusteredResourceURI(t *testing.T) {
 			errorMessage: "invalid URI format: expected at least 3 parts after prefix, got 2",
 		},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			components, err := parseClusteredResourceURI(tc.uri)
-			
+
 			if tc.expectError {
 				assert.Error(t, err, "parseClusteredResourceURI should return an error")
 				assert.Equal(t, tc.errorMessage, err.Error(), "Error message should match")
@@ -478,11 +478,11 @@ func TestParseClusteredResourceURI(t *testing.T) {
 func TestParseNamespacedResourceURI(t *testing.T) {
 	// Test cases for parseNamespacedResourceURI
 	testCases := []struct {
-		name              string
-		uri               string
+		name               string
+		uri                string
 		expectedComponents ResourceURIComponents
-		expectError       bool
-		errorMessage      string
+		expectError        bool
+		errorMessage       string
 	}{
 		{
 			name: "Valid URI with group",
@@ -521,11 +521,11 @@ func TestParseNamespacedResourceURI(t *testing.T) {
 			errorMessage: "invalid URI format: expected at least 4 parts after prefix, got 3",
 		},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			components, err := parseNamespacedResourceURI(tc.uri)
-			
+
 			if tc.expectError {
 				assert.Error(t, err, "parseNamespacedResourceURI should return an error")
 				assert.Equal(t, tc.errorMessage, err.Error(), "Error message should match")
@@ -566,12 +566,12 @@ func TestHandleClusteredResourceErrors(t *testing.T) {
 				// Create a fake dynamic client
 				scheme := runtime.NewScheme()
 				fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme)
-				
+
 				// Add a fake get response with error
 				fakeDynamicClient.PrependReactor("get", "clusterroles", func(action testingfake.Action) (handled bool, ret runtime.Object, err error) {
 					return true, nil, fmt.Errorf("resource not found")
 				})
-				
+
 				// Set the dynamic client
 				mockClient.SetDynamicClient(fakeDynamicClient)
 			},
@@ -579,25 +579,25 @@ func TestHandleClusteredResourceErrors(t *testing.T) {
 			errorMessage: "failed to get resource: resource not found",
 		},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Create a mock k8s client
 			mockClient := &k8s.Client{}
-			
+
 			// Setup the mock
 			tc.setupMock(mockClient)
-			
+
 			// Create an implementation
 			impl := NewImplementation(mockClient)
-			
+
 			// Create a test request
 			request := mcp.ReadResourceRequest{}
 			request.Params.URI = tc.uri
-			
+
 			// Test HandleClusteredResource
 			result, err := impl.HandleClusteredResource(context.Background(), request)
-			
+
 			if tc.expectError {
 				assert.Error(t, err, "HandleClusteredResource should return an error")
 				assert.Contains(t, err.Error(), tc.errorMessage, "Error message should contain expected text")
@@ -635,12 +635,12 @@ func TestHandleNamespacedResourceErrors(t *testing.T) {
 				// Create a fake dynamic client
 				scheme := runtime.NewScheme()
 				fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme)
-				
+
 				// Add a fake get response with error
 				fakeDynamicClient.PrependReactor("get", "deployments", func(action testingfake.Action) (handled bool, ret runtime.Object, err error) {
 					return true, nil, fmt.Errorf("resource not found")
 				})
-				
+
 				// Set the dynamic client
 				mockClient.SetDynamicClient(fakeDynamicClient)
 			},
@@ -648,25 +648,25 @@ func TestHandleNamespacedResourceErrors(t *testing.T) {
 			errorMessage: "failed to get resource: resource not found",
 		},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Create a mock k8s client
 			mockClient := &k8s.Client{}
-			
+
 			// Setup the mock
 			tc.setupMock(mockClient)
-			
+
 			// Create an implementation
 			impl := NewImplementation(mockClient)
-			
+
 			// Create a test request
 			request := mcp.ReadResourceRequest{}
 			request.Params.URI = tc.uri
-			
+
 			// Test HandleNamespacedResource
 			result, err := impl.HandleNamespacedResource(context.Background(), request)
-			
+
 			if tc.expectError {
 				assert.Error(t, err, "HandleNamespacedResource should return an error")
 				assert.Contains(t, err.Error(), tc.errorMessage, "Error message should contain expected text")

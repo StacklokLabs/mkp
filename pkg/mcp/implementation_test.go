@@ -23,16 +23,16 @@ type mockK8sClient struct {
 
 func newMockK8sClient() *mockK8sClient {
 	scheme := runtime.NewScheme()
-	
+
 	// Register list kinds for the resources we'll be testing
 	listKinds := map[schema.GroupVersionResource]string{
 		{Group: "apps", Version: "v1", Resource: "deployments"}: "DeploymentList",
 	}
-	
+
 	dynamicClient := fake.NewSimpleDynamicClientWithCustomListKinds(scheme, listKinds)
-	
+
 	return &mockK8sClient{
-		Client: &k8s.Client{},
+		Client:        &k8s.Client{},
 		dynamicClient: dynamicClient,
 	}
 }
