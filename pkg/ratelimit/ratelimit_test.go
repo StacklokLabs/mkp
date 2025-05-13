@@ -1,191 +1,270 @@
 package ratelimit
 
-// import (
-// 	"context"
-// 	"testing"
-// 	"time"
+import (
+	"context"
+	"testing"
+	"time"
 
-// 	"github.com/stretchr/testify/assert"
-// )
+	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+)
 
-// // MockClientSession is a simplified mock for testing
-// type MockClientSession struct {
-// 	ID string
-// }
+func TestRateLimiterCreation(t *testing.T) {
+	// Test with default options
+	limiter := NewRateLimiter()
+	assert.NotNil(t, limiter)
+	assert.Equal(t, defaultLimit, limiter.defaultLimit)
 
-// func (m *MockClientSession) SessionID() string {
-// 	return m.ID
-// }
+	// Test with custom options
+	customLimiter := NewRateLimiter(
+		WithDefaultLimit(100),
+		WithToolLimit("test-tool", 50),
+	)
+	assert.NotNil(t, customLimiter)
+	assert.Equal(t, 100, customLimiter.defaultLimit)
+	assert.Equal(t, 50, customLimiter.limits["test-tool"])
+}
 
-// // mockContextKey for storing the session in context
-// type mockContextKey struct{}
+func TestGetSessionID(t *testing.T) {
+	// Test with session ID in context via custom key
+	ctx := context.Background()
+	ctx = SetSessionIDToContext(ctx, "test-session")
+	sessionID := getSessionID(ctx, "test-tool")
+	assert.Equal(t, "test-session", sessionID)
 
-// // mockClientSessionFromContext gets a session from context
-// func mockClientSessionFromContext(ctx context.Context) interface{} {
-// 	return ctx.Value(mockContextKey{})
-// }
+	// Test with ClientSession in context
+	ctx = context.Background()
+	session := &mockSession{id: "mock-session"}
+	ctx = SetSessionIDToContext(ctx, session.SessionID())
+	sessionID = getSessionID(ctx, "test-tool")
+	assert.Equal(t, "mock-session", sessionID)
 
-// // withMockSession adds a session to context
-// func withMockSession(ctx context.Context, id string) context.Context {
-// 	return context.WithValue(ctx, mockContextKey{}, &MockClientSession{ID: id})
-// }
+	// Test fallback to tool name
+	ctx = context.Background()
+	sessionID = getSessionID(ctx, "fallback-tool")
+	assert.Equal(t, "tool:fallback-tool", sessionID)
+}
 
-// // TestRateLimiterCreation tests that a rate limiter can be created with options
-// func TestRateLimiterCreation(t *testing.T) {
-// 	// Create a rate limiter with custom options
-// 	limiter := NewRateLimiter(
-// 		WithDefaultLimit(100),
-// 		WithToolLimit("test-tool", 50),
-// 	)
+func TestRateLimiting(t *testing.T) {
+	// Rate limiter with a low limit for testing
+	limiter := NewRateLimiter(WithDefaultLimit(2))
+	middleware := limiter.Middleware()
 
-// 	// Verify the limiter was created with the correct options
-// 	assert.Equal(t, 100, limiter.defaultLimit)
-// 	assert.Equal(t, 50, limiter.limits["test-tool"])
-// }
+	// Mock handler that always succeeds
+	mockHandler := new(MockToolHandler)
+	mockHandler.On("Handle", mock.Anything, mock.Anything).Return(
+		mcp.NewToolResultText("success"), nil,
+	)
 
-// // TestRateLimiterGetLimit tests the getLimit method
-// func TestRateLimiterGetLimit(t *testing.T) {
-// 	// Create a rate limiter with custom limits
-// 	limiter := NewRateLimiter(
-// 		WithDefaultLimit(100),
-// 		WithToolLimit("test-tool", 50),
-// 	)
+	wrappedHandler := middleware(mockHandler.Handle)
 
-// 	// Test getting the limit for a tool with a custom limit
-// 	assert.Equal(t, 50, limiter.getLimit("test-tool"))
+	request := mcp.CallToolRequest{
+		Params: struct {
+			Name      string                 `json:"name"`
+			Arguments map[string]interface{} `json:"arguments,omitempty"`
+			Meta      *struct {
+				ProgressToken mcp.ProgressToken `json:"progressToken,omitempty"`
+			} `json:"_meta,omitempty"`
+		}{
+			Name: "test-tool",
+		},
+	}
 
-// 	// Test getting the limit for a tool without a custom limit
-// 	assert.Equal(t, 100, limiter.getLimit("unknown-tool"))
-// }
+	ctx := SetSessionIDToContext(context.Background(), "test-session")
 
-// // TestRateLimiterAllowRequest tests the core rate limiting functionality
-// func TestRateLimiterAllowRequest(t *testing.T) {
-// 	// Create a rate limiter with a very low limit for testing
-// 	limiter := NewRateLimiter(
-// 		WithDefaultLimit(5),
-// 	)
+	// First request should succeed
+	result, err := wrappedHandler(ctx, request)
+	assert.NoError(t, err)
+	assert.False(t, result.IsError)
 
-// 	// Use a direct session ID for testing
-// 	sessionID := "session:test-session-id"
-// 	toolName := "test-tool"
+	// Second request should succeed (hit limit)
+	result, err = wrappedHandler(ctx, request)
+	assert.NoError(t, err)
+	assert.False(t, result.IsError)
 
-// 	// Test that the first 5 requests are allowed
-// 	for i := 0; i < 5; i++ {
-// 		bucket := limiter.getBucket(sessionID, toolName)
-// 		allowed := bucket.tokens > 0
-// 		assert.True(t, allowed, "Request %d should be allowed", i+1)
-// 		if allowed {
-// 			bucket.tokens--
-// 		}
-// 	}
+	// Third request should be rate limited
+	result, err = wrappedHandler(ctx, request)
+	assert.NoError(t, err)
+	assert.True(t, result.IsError)
+	assert.Contains(t, result.Content[0].(mcp.TextContent).Text, "Rate limit exceeded")
+}
 
-// 	// Test that the 6th request is not allowed
-// 	bucket := limiter.getBucket(sessionID, toolName)
-// 	assert.Equal(t, 0, bucket.tokens, "Bucket should be empty")
+func TestMultipleSessionRateLimiting(t *testing.T) {
+	limiter := NewRateLimiter(WithDefaultLimit(2))
+	middleware := limiter.Middleware()
 
-// 	// Wait for the rate limit to reset (at least partially)
-// 	time.Sleep(1 * time.Second)
+	mockHandler := new(MockToolHandler)
+	mockHandler.On("Handle", mock.Anything, mock.Anything).Return(
+		mcp.NewToolResultText("success"), nil,
+	)
 
-// 	// Test that we can make at least one more request
-// 	bucket = limiter.getBucket(sessionID, toolName)
-// 	assert.True(t, bucket.tokens > 0, "Bucket should have tokens after waiting")
-// }
+	wrappedHandler := middleware(mockHandler.Handle)
 
-// // TestRateLimiterCleanup tests the cleanup method
-// func TestRateLimiterCleanup(t *testing.T) {
-// 	// Create a rate limiter
-// 	limiter := NewRateLimiter()
+	request := mcp.CallToolRequest{
+		Params: struct {
+			Name      string                 `json:"name"`
+			Arguments map[string]interface{} `json:"arguments,omitempty"`
+			Meta      *struct {
+				ProgressToken mcp.ProgressToken `json:"progressToken,omitempty"`
+			} `json:"_meta,omitempty"`
+		}{
+			Name: "test-tool",
+		},
+	}
 
-// 	// Manually create a bucket
-// 	sessionID := "session:test-session-id"
-// 	toolName := "test-tool"
+	// Create contexts for two different sessions
+	ctx1 := SetSessionIDToContext(context.Background(), "session-1")
+	ctx2 := SetSessionIDToContext(context.Background(), "session-2")
 
-// 	// Get a bucket which creates it
-// 	limiter.getBucket(sessionID, toolName)
+	// Session 1: First request
+	result, _ := wrappedHandler(ctx1, request)
+	assert.False(t, result.IsError)
+	assert.Equal(t, "success", result.Content[0].(mcp.TextContent).Text)
 
-// 	// Verify the bucket was created
-// 	assert.Len(t, limiter.buckets, 1)
-// 	assert.Len(t, limiter.buckets[sessionID], 1)
+	// Session 1: Second request (hits limit)
+	result, _ = wrappedHandler(ctx1, request)
+	assert.False(t, result.IsError)
+	assert.Equal(t, "success", result.Content[0].(mcp.TextContent).Text)
 
-// 	// Override the lastSeen time to simulate an old bucket
-// 	limiter.buckets[sessionID][toolName].lastSeen = time.Now().Add(-bucketTimeout - time.Minute)
+	// Session 1: Third request (rate limited)
+	result, _ = wrappedHandler(ctx1, request)
+	assert.True(t, result.IsError)
+	assert.Contains(t, result.Content[0].(mcp.TextContent).Text, "Rate limit exceeded")
 
-// 	// Run cleanup
-// 	limiter.cleanup()
+	// Session 2: First request (should succeed because different session)
+	result, _ = wrappedHandler(ctx2, request)
+	assert.False(t, result.IsError)
+	assert.Equal(t, "success", result.Content[0].(mcp.TextContent).Text)
 
-// 	// Verify the bucket was removed
-// 	assert.Len(t, limiter.buckets, 0)
-// }
+	// Session 2: Second request (hits limit)
+	result, _ = wrappedHandler(ctx2, request)
+	assert.False(t, result.IsError)
+	assert.Equal(t, "success", result.Content[0].(mcp.TextContent).Text)
 
-// // TestRateLimiterStop tests the Stop method
-// func TestRateLimiterStop(t *testing.T) {
-// 	// Create a rate limiter
-// 	limiter := NewRateLimiter()
+	// Session 2: Third request (rate limited)
+	result, _ = wrappedHandler(ctx2, request)
+	assert.True(t, result.IsError)
+	assert.Contains(t, result.Content[0].(mcp.TextContent).Text, "Rate limit exceeded")
+}
 
-// 	// Stop the limiter
-// 	limiter.Stop()
+func TestWindowReset(t *testing.T) {
+	// Rate limiter with a small window for testing
+	testWindowSize := 50 * time.Millisecond
 
-// 	// There's not much we can assert here, but at least we can verify it doesn't panic
-// 	assert.NotPanics(t, func() {
-// 		limiter.Stop()
-// 	})
-// }
+	// Limiter with custom window size
+	limiter := NewRateLimiter(WithDefaultLimit(1), WithTimeWindow(testWindowSize))
+	middleware := limiter.Middleware()
 
-// // TestGetSessionID is skipped in this implementation
-// // In a real implementation, we would use a proper mock of the server.ClientSession
-// // interface, but for simplicity we're focusing on the core rate limiting functionality
-// func TestGetSessionID(t *testing.T) {
-// 	// Skip this test as it requires mocking the server.ClientSession interface
-// 	t.Skip("Skipping test that requires mocking server.ClientSession")
-// }
+	mockHandler := new(MockToolHandler)
+	mockHandler.On("Handle", mock.Anything, mock.Anything).Return(
+		mcp.NewToolResultText("success"), nil,
+	)
 
-// // TestGetDefaultRateLimiter tests the GetDefaultRateLimiter function
-// func TestGetDefaultRateLimiter(t *testing.T) {
-// 	// Get the default rate limiter
-// 	limiter := GetDefaultRateLimiter()
+	wrappedHandler := middleware(mockHandler.Handle)
 
-// 	// Verify it has the expected default limit
-// 	assert.Equal(t, DefaultConfig["default"], limiter.defaultLimit)
+	request := mcp.CallToolRequest{
+		Params: struct {
+			Name      string                 `json:"name"`
+			Arguments map[string]interface{} `json:"arguments,omitempty"`
+			Meta      *struct {
+				ProgressToken mcp.ProgressToken `json:"progressToken,omitempty"`
+			} `json:"_meta,omitempty"`
+		}{
+			Name: "test-tool",
+		},
+	}
 
-// 	// Verify it has the expected tool limits
-// 	for tool, limit := range DefaultConfig {
-// 		if tool != "default" {
-// 			assert.Equal(t, limit, limiter.limits[tool])
-// 		}
-// 	}
-// }
+	ctx := SetSessionIDToContext(context.Background(), "test-session")
 
-// // TestDifferentialRateLimiting tests that different tools have different rate limits
-// func TestDifferentialRateLimiting(t *testing.T) {
-// 	// Create a rate limiter with the default configuration
-// 	limiter := GetDefaultRateLimiter()
+	// First request should succeed
+	result, _ := wrappedHandler(ctx, request)
+	assert.False(t, result.IsError)
+	assert.Equal(t, "success", result.Content[0].(mcp.TextContent).Text)
 
-// 	// Test read operation (list_resources) - should have higher limit (120)
-// 	readTool := "list_resources"
+	// Second request should be rate limited
+	result, _ = wrappedHandler(ctx, request)
+	assert.True(t, result.IsError)
+	assert.Contains(t, result.Content[0].(mcp.TextContent).Text, "Rate limit exceeded")
 
-// 	// Verify the limit is higher for read operations
-// 	readLimit := limiter.getLimit(readTool)
-// 	assert.Equal(t, 120, readLimit)
+	// Wait for the window to reset
+	time.Sleep(testWindowSize + 10*time.Millisecond)
 
-// 	// Test write operation (apply_resource) - should have lower limit (30)
-// 	writeTool := "apply_resource"
+	// After window reset, the request should succeed again
+	result, _ = wrappedHandler(ctx, request)
+	assert.False(t, result.IsError)
+	assert.Equal(t, "success", result.Content[0].(mcp.TextContent).Text)
+}
 
-// 	// Verify the limit is lower for write operations
-// 	writeLimit := limiter.getLimit(writeTool)
-// 	assert.Equal(t, 30, writeLimit)
+func TestToolSpecificLimits(t *testing.T) {
+	// Rate limiter with tool-specific limits
+	limiter := NewRateLimiter(
+		WithDefaultLimit(1),
+		WithToolLimit("high-limit-tool", 3),
+	)
+	middleware := limiter.Middleware()
 
-// 	// Create a session ID for testing
-// 	sessionID := "session:test-session-id"
+	mockHandler := new(MockToolHandler)
+	mockHandler.On("Handle", mock.Anything, mock.Anything).Return(
+		mcp.NewToolResultText("success"), nil,
+	)
+	wrappedHandler := middleware(mockHandler.Handle)
 
-// 	// Verify that different tools have separate rate limits
-// 	// Make a few requests with the read tool
-// 	for i := 0; i < 10; i++ {
-// 		bucket := limiter.getBucket(sessionID, readTool)
-// 		assert.True(t, bucket.tokens > 0, "Read bucket should have tokens")
-// 		bucket.tokens--
-// 	}
+	ctx := SetSessionIDToContext(context.Background(), "test-session")
 
-// 	// Should still be able to make write requests even after making read requests
-// 	writeBucket := limiter.getBucket(sessionID, writeTool)
-// 	assert.Equal(t, writeLimit, writeBucket.tokens, "Write bucket should have full tokens")
-// }
+	// Test default limit tool (limit = 1)
+	defaultRequest := mcp.CallToolRequest{
+		Params: struct {
+			Name      string                 `json:"name"`
+			Arguments map[string]interface{} `json:"arguments,omitempty"`
+			Meta      *struct {
+				ProgressToken mcp.ProgressToken `json:"progressToken,omitempty"`
+			} `json:"_meta,omitempty"`
+		}{
+			Name: "default-tool",
+		},
+	}
+
+	// First request should succeed
+	result, _ := wrappedHandler(ctx, defaultRequest)
+	assert.False(t, result.IsError)
+	assert.Equal(t, "success", result.Content[0].(mcp.TextContent).Text)
+
+	// Second request should be rate limited
+	result, _ = wrappedHandler(ctx, defaultRequest)
+	assert.True(t, result.IsError)
+	assert.Contains(t, result.Content[0].(mcp.TextContent).Text, "Rate limit exceeded")
+
+	// Test high limit tool (limit = 3)
+	highLimitRequest := mcp.CallToolRequest{
+		Params: struct {
+			Name      string                 `json:"name"`
+			Arguments map[string]interface{} `json:"arguments,omitempty"`
+			Meta      *struct {
+				ProgressToken mcp.ProgressToken `json:"progressToken,omitempty"`
+			} `json:"_meta,omitempty"`
+		}{
+			Name: "high-limit-tool",
+		},
+	}
+
+	// First request should succeed
+	result, _ = wrappedHandler(ctx, highLimitRequest)
+	assert.False(t, result.IsError)
+	assert.Equal(t, "success", result.Content[0].(mcp.TextContent).Text)
+
+	// Second request should succeed
+	result, _ = wrappedHandler(ctx, highLimitRequest)
+	assert.False(t, result.IsError)
+	assert.Equal(t, "success", result.Content[0].(mcp.TextContent).Text)
+
+	// Third request should succeed
+	result, _ = wrappedHandler(ctx, highLimitRequest)
+	assert.False(t, result.IsError)
+	assert.Equal(t, "success", result.Content[0].(mcp.TextContent).Text)
+
+	// Fourth request should be rate limited
+	result, _ = wrappedHandler(ctx, highLimitRequest)
+	assert.True(t, result.IsError)
+	assert.Contains(t, result.Content[0].(mcp.TextContent).Text, "Rate limit exceeded")
+}
