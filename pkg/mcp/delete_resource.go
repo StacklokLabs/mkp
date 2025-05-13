@@ -88,8 +88,8 @@ func NewDeleteResourceTool() mcp.Tool {
 			mcp.Required()),
 		mcp.WithToolAnnotation(mcp.ToolAnnotation{
 			Title:          "Delete a Kubernetes resource",
-			ReadOnlyHint:   false,
-			IdempotentHint: true,
+			ReadOnlyHint:   BoolPtr(false),
+			IdempotentHint: BoolPtr(true),
 		}),
 	)
 }

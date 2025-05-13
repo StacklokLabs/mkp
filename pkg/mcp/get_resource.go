@@ -108,7 +108,7 @@ func NewGetResourceTool() mcp.Tool {
 			For pod logs: container, previous, sinceSeconds, sinceTime, timestamps, limitBytes, tailLines`)),
 		mcp.WithToolAnnotation(mcp.ToolAnnotation{
 			Title:        "Get Kubernetes resource",
-			ReadOnlyHint: true,
+			ReadOnlyHint: BoolPtr(true),
 		}),
 	)
 }
