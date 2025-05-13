@@ -1,3 +1,4 @@
+// Package mcp implements the Model, Channel, Prompt (MCP) protocol services
 package mcp
 
 import (
@@ -31,13 +32,13 @@ func (m *Implementation) HandleDeleteResource(ctx context.Context, request mcp.C
 	if name == "" {
 		return mcp.NewToolResultError("name is required"), nil
 	}
-	if resourceType == "namespaced" && namespace == "" {
+	if resourceType == ResourceTypeNamespaced && namespace == "" {
 		return mcp.NewToolResultError("namespace is required for namespaced resources"), nil
 	}
 
 	// Create GVR
 	// Validate resource_type
-	if resourceType != "clustered" && resourceType != "namespaced" {
+	if resourceType != ResourceTypeClustered && resourceType != ResourceTypeNamespaced {
 		return mcp.NewToolResultError("Invalid resource_type: " + resourceType), nil
 	}
 
@@ -50,9 +51,9 @@ func (m *Implementation) HandleDeleteResource(ctx context.Context, request mcp.C
 	// Delete resource
 	var err error
 	switch resourceType {
-	case "clustered":
+	case ResourceTypeClustered:
 		err = m.k8sClient.DeleteClusteredResource(ctx, gvr, name)
-	case "namespaced":
+	case ResourceTypeNamespaced:
 		err = m.k8sClient.DeleteNamespacedResource(ctx, gvr, namespace, name)
 	default:
 		return mcp.NewToolResultError(fmt.Sprintf("Invalid resource_type: %s", resourceType)), nil

@@ -18,11 +18,11 @@ import (
 func TestHandleApplyResourceClusteredSuccess(t *testing.T) {
 	// Create a mock k8s client
 	mockClient := &k8s.Client{}
-	
+
 	// Create a fake dynamic client
 	scheme := runtime.NewScheme()
 	fakeDynamicClient := fake.NewSimpleDynamicClient(scheme)
-	
+
 	// Create a test resource
 	obj := &unstructured.Unstructured{
 		Object: map[string]interface{}{
@@ -40,26 +40,26 @@ func TestHandleApplyResourceClusteredSuccess(t *testing.T) {
 			},
 		},
 	}
-	
+
 	// Add a fake get response (resource not found)
-	fakeDynamicClient.PrependReactor("get", "clusterroles", func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
+	fakeDynamicClient.PrependReactor("get", "clusterroles", func(_ ktesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, nil, fmt.Errorf("not found: clusterroles \"test-cluster-role\" not found")
 	})
-	
+
 	// Add a fake create response
-	fakeDynamicClient.PrependReactor("create", "clusterroles", func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
+	fakeDynamicClient.PrependReactor("create", "clusterroles", func(_ ktesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, obj, nil
 	})
-	
+
 	// Set the dynamic client
 	mockClient.SetDynamicClient(fakeDynamicClient)
-	
+
 	// Create an implementation
 	impl := NewImplementation(mockClient)
-	
+
 	// Create a test request
 	request := mcp.CallToolRequest{}
-	request.Params.Name = "apply_resource"
+	request.Params.Name = ApplyResourceToolName
 	request.Params.Arguments = map[string]interface{}{
 		"resource_type": "clustered",
 		"group":         "rbac.authorization.k8s.io",
@@ -80,20 +80,20 @@ func TestHandleApplyResourceClusteredSuccess(t *testing.T) {
 			},
 		},
 	}
-	
+
 	// Test HandleApplyResource
 	ctx := context.Background()
 	result, err := impl.HandleApplyResource(ctx, request)
-	
+
 	// Verify there was no error
 	assert.NoError(t, err, "HandleApplyResource should not return an error")
-	
+
 	// Verify the result is not nil
 	assert.NotNil(t, result, "Result should not be nil")
-	
+
 	// Verify the result is successful
 	assert.False(t, result.IsError, "Result should not be an error")
-	
+
 	// Verify the result contains the resource name
 	textContent, ok := mcp.AsTextContent(result.Content[0])
 	assert.True(t, ok, "Content should be TextContent")
@@ -103,11 +103,11 @@ func TestHandleApplyResourceClusteredSuccess(t *testing.T) {
 func TestHandleApplyResourceNamespacedSuccess(t *testing.T) {
 	// Create a mock k8s client
 	mockClient := &k8s.Client{}
-	
+
 	// Create a fake dynamic client
 	scheme := runtime.NewScheme()
 	fakeDynamicClient := fake.NewSimpleDynamicClient(scheme)
-	
+
 	// Create a test resource
 	obj := &unstructured.Unstructured{
 		Object: map[string]interface{}{
@@ -127,28 +127,28 @@ func TestHandleApplyResourceNamespacedSuccess(t *testing.T) {
 			},
 		},
 	}
-	
+
 	// Add a fake get response (resource not found)
-	fakeDynamicClient.PrependReactor("get", "services", func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
+	fakeDynamicClient.PrependReactor("get", "services", func(_ ktesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, nil, fmt.Errorf("not found: services \"test-service\" not found")
 	})
-	
+
 	// Add a fake create response
-	fakeDynamicClient.PrependReactor("create", "services", func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
+	fakeDynamicClient.PrependReactor("create", "services", func(_ ktesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, obj, nil
 	})
-	
+
 	// Set the dynamic client
 	mockClient.SetDynamicClient(fakeDynamicClient)
-	
+
 	// Create an implementation
 	impl := NewImplementation(mockClient)
-	
+
 	// Create a test request
 	request := mcp.CallToolRequest{}
-	request.Params.Name = "apply_resource"
+	request.Params.Name = ApplyResourceToolName
 	request.Params.Arguments = map[string]interface{}{
-		"resource_type": "namespaced",
+		"resource_type": ResourceTypeNamespaced,
 		"group":         "",
 		"version":       "v1",
 		"resource":      "services",
@@ -170,20 +170,20 @@ func TestHandleApplyResourceNamespacedSuccess(t *testing.T) {
 			},
 		},
 	}
-	
+
 	// Test HandleApplyResource
 	ctx := context.Background()
 	result, err := impl.HandleApplyResource(ctx, request)
-	
+
 	// Verify there was no error
 	assert.NoError(t, err, "HandleApplyResource should not return an error")
-	
+
 	// Verify the result is not nil
 	assert.NotNil(t, result, "Result should not be nil")
-	
+
 	// Verify the result is successful
 	assert.False(t, result.IsError, "Result should not be an error")
-	
+
 	// Verify the result contains the resource name
 	textContent, ok := mcp.AsTextContent(result.Content[0])
 	assert.True(t, ok, "Content should be TextContent")
@@ -193,10 +193,10 @@ func TestHandleApplyResourceNamespacedSuccess(t *testing.T) {
 func TestHandleApplyResourceMissingParameters(t *testing.T) {
 	// Create a mock k8s client
 	mockClient := &k8s.Client{}
-	
+
 	// Create an implementation
 	impl := NewImplementation(mockClient)
-	
+
 	// Test cases for missing parameters
 	testCases := []struct {
 		name      string
@@ -204,7 +204,7 @@ func TestHandleApplyResourceMissingParameters(t *testing.T) {
 		errorMsg  string
 	}{
 		{
-			name:      "Missing resource_type",
+			name: "Missing resource_type",
 			arguments: map[string]interface{}{
 				"group":    "apps",
 				"version":  "v1",
@@ -214,7 +214,7 @@ func TestHandleApplyResourceMissingParameters(t *testing.T) {
 			errorMsg: "resource_type is required",
 		},
 		{
-			name:      "Missing version",
+			name: "Missing version",
 			arguments: map[string]interface{}{
 				"resource_type": "clustered",
 				"group":         "apps",
@@ -224,7 +224,7 @@ func TestHandleApplyResourceMissingParameters(t *testing.T) {
 			errorMsg: "version is required",
 		},
 		{
-			name:      "Missing resource",
+			name: "Missing resource",
 			arguments: map[string]interface{}{
 				"resource_type": "clustered",
 				"group":         "apps",
@@ -234,9 +234,9 @@ func TestHandleApplyResourceMissingParameters(t *testing.T) {
 			errorMsg: "resource is required",
 		},
 		{
-			name:      "Missing namespace for namespaced resource",
+			name: "Missing namespace for namespaced resource",
 			arguments: map[string]interface{}{
-				"resource_type": "namespaced",
+				"resource_type": ResourceTypeNamespaced,
 				"group":         "apps",
 				"version":       "v1",
 				"resource":      "deployments",
@@ -245,7 +245,7 @@ func TestHandleApplyResourceMissingParameters(t *testing.T) {
 			errorMsg: "namespace is required for namespaced resources",
 		},
 		{
-			name:      "Missing manifest",
+			name: "Missing manifest",
 			arguments: map[string]interface{}{
 				"resource_type": "clustered",
 				"group":         "apps",
@@ -255,27 +255,27 @@ func TestHandleApplyResourceMissingParameters(t *testing.T) {
 			errorMsg: "manifest is required",
 		},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Create a test request
 			request := mcp.CallToolRequest{}
-			request.Params.Name = "apply_resource"
+			request.Params.Name = ApplyResourceToolName
 			request.Params.Arguments = tc.arguments
-			
+
 			// Test HandleApplyResource
 			ctx := context.Background()
 			result, err := impl.HandleApplyResource(ctx, request)
-			
+
 			// Verify there was no error
 			assert.NoError(t, err, "HandleApplyResource should not return an error")
-			
+
 			// Verify the result is not nil
 			assert.NotNil(t, result, "Result should not be nil")
-			
+
 			// Verify the result is an error
 			assert.True(t, result.IsError, "Result should be an error")
-			
+
 			// Verify the error message
 			textContent, ok := mcp.AsTextContent(result.Content[0])
 			assert.True(t, ok, "Content should be TextContent")
@@ -287,13 +287,13 @@ func TestHandleApplyResourceMissingParameters(t *testing.T) {
 func TestHandleApplyResourceInvalidResourceType(t *testing.T) {
 	// Create a mock k8s client
 	mockClient := &k8s.Client{}
-	
+
 	// Create an implementation
 	impl := NewImplementation(mockClient)
-	
+
 	// Create a test request with invalid resource_type
 	request := mcp.CallToolRequest{}
-	request.Params.Name = "apply_resource"
+	request.Params.Name = ApplyResourceToolName
 	request.Params.Arguments = map[string]interface{}{
 		"resource_type": "invalid",
 		"group":         "apps",
@@ -301,20 +301,20 @@ func TestHandleApplyResourceInvalidResourceType(t *testing.T) {
 		"resource":      "deployments",
 		"manifest":      map[string]interface{}{},
 	}
-	
+
 	// Test HandleApplyResource
 	ctx := context.Background()
 	result, err := impl.HandleApplyResource(ctx, request)
-	
+
 	// Verify there was no error
 	assert.NoError(t, err, "HandleApplyResource should not return an error")
-	
+
 	// Verify the result is not nil
 	assert.NotNil(t, result, "Result should not be nil")
-	
+
 	// Verify the result is an error
 	assert.True(t, result.IsError, "Result should be an error")
-	
+
 	// Verify the error message
 	textContent, ok := mcp.AsTextContent(result.Content[0])
 	assert.True(t, ok, "Content should be TextContent")
@@ -324,30 +324,30 @@ func TestHandleApplyResourceInvalidResourceType(t *testing.T) {
 func TestHandleApplyResourceApplyError(t *testing.T) {
 	// Create a mock k8s client
 	mockClient := &k8s.Client{}
-	
+
 	// Create a fake dynamic client
 	scheme := runtime.NewScheme()
 	fakeDynamicClient := fake.NewSimpleDynamicClient(scheme)
-	
+
 	// Add a fake get response (resource not found)
-	fakeDynamicClient.PrependReactor("get", "clusterroles", func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
+	fakeDynamicClient.PrependReactor("get", "clusterroles", func(_ ktesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, nil, fmt.Errorf("not found: clusterroles \"test-cluster-role\" not found")
 	})
-	
+
 	// Add a fake create response with error
-	fakeDynamicClient.PrependReactor("create", "clusterroles", func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
+	fakeDynamicClient.PrependReactor("create", "clusterroles", func(_ ktesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, nil, fmt.Errorf("failed to create resource")
 	})
-	
+
 	// Set the dynamic client
 	mockClient.SetDynamicClient(fakeDynamicClient)
-	
+
 	// Create an implementation
 	impl := NewImplementation(mockClient)
-	
+
 	// Create a test request
 	request := mcp.CallToolRequest{}
-	request.Params.Name = "apply_resource"
+	request.Params.Name = ApplyResourceToolName
 	request.Params.Arguments = map[string]interface{}{
 		"resource_type": "clustered",
 		"group":         "rbac.authorization.k8s.io",
@@ -361,20 +361,20 @@ func TestHandleApplyResourceApplyError(t *testing.T) {
 			},
 		},
 	}
-	
+
 	// Test HandleApplyResource
 	ctx := context.Background()
 	result, err := impl.HandleApplyResource(ctx, request)
-	
+
 	// Verify there was no error
 	assert.NoError(t, err, "HandleApplyResource should not return an error")
-	
+
 	// Verify the result is not nil
 	assert.NotNil(t, result, "Result should not be nil")
-	
+
 	// Verify the result is an error
 	assert.True(t, result.IsError, "Result should be an error")
-	
+
 	// Verify the error message
 	textContent, ok := mcp.AsTextContent(result.Content[0])
 	assert.True(t, ok, "Content should be TextContent")

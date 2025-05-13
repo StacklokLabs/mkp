@@ -1,3 +1,4 @@
+// Package mcp implements the Model, Channel, Prompt (MCP) protocol services
 package mcp
 
 import (
@@ -30,7 +31,7 @@ func (m *Implementation) HandleApplyResource(ctx context.Context, request mcp.Ca
 	if resource == "" {
 		return mcp.NewToolResultError("resource is required"), nil
 	}
-	if resourceType == "namespaced" && namespace == "" {
+	if resourceType == ResourceTypeNamespaced && namespace == "" {
 		return mcp.NewToolResultError("namespace is required for namespaced resources"), nil
 	}
 	if manifestMap == nil {
@@ -51,9 +52,9 @@ func (m *Implementation) HandleApplyResource(ctx context.Context, request mcp.Ca
 	var result *unstructured.Unstructured
 	var err error
 	switch resourceType {
-	case "clustered":
+	case ResourceTypeClustered:
 		result, err = m.k8sClient.ApplyClusteredResource(ctx, gvr, obj)
-	case "namespaced":
+	case ResourceTypeNamespaced:
 		result, err = m.k8sClient.ApplyNamespacedResource(ctx, gvr, namespace, obj)
 	default:
 		return mcp.NewToolResultError(fmt.Sprintf("Invalid resource_type: %s", resourceType)), nil

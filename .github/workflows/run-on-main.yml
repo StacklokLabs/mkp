@@ -1,0 +1,20 @@
+# These set of workflows run on every push to the main branch
+name: Main build
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  linting:
+    name: Linting
+    uses: ./.github/workflows/lint.yml
+  tests:
+    name: Tests
+    uses: ./.github/workflows/test.yml
+  build:
+    name: Build
+    uses: ./.github/workflows/build.yml
