@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/StacklokLabs/mkp/pkg/common"
 	"github.com/mark3labs/mcp-go/mcp"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -83,7 +84,7 @@ func (m *Implementation) HandleGetResource(ctx context.Context, request mcp.Call
 
 // NewGetResourceTool creates a new get_resource tool
 func NewGetResourceTool() mcp.Tool {
-	return mcp.NewTool("get_resource",
+	return mcp.NewTool(common.ToolGetResource,
 		mcp.WithDescription("Get a Kubernetes resource or its subresource"),
 		mcp.WithString("resource_type",
 			mcp.Description("Type of resource to get (clustered or namespaced)"),

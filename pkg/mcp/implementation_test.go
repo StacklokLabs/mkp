@@ -12,6 +12,7 @@ import (
 	"k8s.io/client-go/dynamic/fake"
 	ktesting "k8s.io/client-go/testing"
 
+	"github.com/StacklokLabs/mkp/pkg/common"
 	"github.com/StacklokLabs/mkp/pkg/k8s"
 )
 
@@ -80,7 +81,7 @@ func TestHandleListResources(t *testing.T) {
 		Name      string
 		Arguments map[string]interface{}
 	}{
-		Name: "list_resources",
+		Name: common.ToolListResources,
 		Arguments: map[string]interface{}{
 			"resource_type": "clustered",
 			"group":         "apps",
@@ -146,7 +147,7 @@ func TestHandleApplyResource(t *testing.T) {
 		Name      string
 		Arguments map[string]interface{}
 	}{
-		Name: "apply_resource",
+		Name: common.ToolApplyResource,
 		Arguments: map[string]interface{}{
 			"resource_type": "clustered",
 			"group":         "apps",
@@ -215,7 +216,7 @@ func TestCallTool(t *testing.T) {
 
 	// Create a test request
 	requestParams := map[string]interface{}{
-		"name": "list_resources",
+		"name": common.ToolListResources,
 		"arguments": map[string]interface{}{
 			"resource_type": "clustered",
 			"group":         "apps",

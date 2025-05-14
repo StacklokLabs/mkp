@@ -3,6 +3,7 @@ package mcp
 import (
 	"testing"
 
+	"github.com/StacklokLabs/mkp/pkg/common"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -10,7 +11,7 @@ func TestNewListResourcesTool(t *testing.T) {
 	tool := NewListResourcesTool()
 
 	// Verify the tool name
-	assert.Equal(t, "list_resources", tool.Name, "Tool name should be 'list_resources'")
+	assert.Equal(t, common.ToolListResources, tool.Name, "Tool name should be 'list_resources'")
 
 	// Verify the tool has the required parameters
 	schema := tool.InputSchema
@@ -38,7 +39,7 @@ func TestNewApplyResourceTool(t *testing.T) {
 	tool := NewApplyResourceTool()
 
 	// Verify the tool name
-	assert.Equal(t, "apply_resource", tool.Name, "Tool name should be 'apply_resource'")
+	assert.Equal(t, common.ToolApplyResource, tool.Name, "Tool name should be 'apply_resource'")
 
 	// Verify the tool has the required parameters
 	schema := tool.InputSchema

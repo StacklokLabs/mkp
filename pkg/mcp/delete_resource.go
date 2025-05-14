@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/StacklokLabs/mkp/pkg/common"
 	"github.com/mark3labs/mcp-go/mcp"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -68,7 +69,7 @@ func (m *Implementation) HandleDeleteResource(ctx context.Context, request mcp.C
 
 // NewDeleteResourceTool creates a new delete_resource tool
 func NewDeleteResourceTool() mcp.Tool {
-	return mcp.NewTool("delete_resource",
+	return mcp.NewTool(common.ToolDeleteResource,
 		mcp.WithDescription("Delete a Kubernetes resource"),
 		mcp.WithString("resource_type",
 			mcp.Description("Type of resource to delete (clustered or namespaced)"),

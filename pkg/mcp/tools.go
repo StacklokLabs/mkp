@@ -1,12 +1,13 @@
 package mcp
 
 import (
+	"github.com/StacklokLabs/mkp/pkg/common"
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
 // NewListResourcesTool creates a new list_resources tool
 func NewListResourcesTool() mcp.Tool {
-	return mcp.NewTool("list_resources",
+	return mcp.NewTool(common.ToolListResources,
 		mcp.WithDescription("List Kubernetes resources"),
 		mcp.WithString("resource_type",
 			mcp.Description("Type of resource to list (clustered or namespaced)"),
@@ -30,7 +31,7 @@ func NewListResourcesTool() mcp.Tool {
 
 // NewApplyResourceTool creates a new apply_resource tool
 func NewApplyResourceTool() mcp.Tool {
-	return mcp.NewTool("apply_resource",
+	return mcp.NewTool(common.ToolApplyResource,
 		mcp.WithDescription("Apply (create or update) a Kubernetes resource"),
 		mcp.WithString("resource_type",
 			mcp.Description("Type of resource to apply (clustered or namespaced)"),
