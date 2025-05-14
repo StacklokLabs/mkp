@@ -5,7 +5,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/StacklokLabs/mkp/pkg/common"
+	"github.com/StacklokLabs/mkp/pkg/types"
 	"github.com/mark3labs/mcp-go/mcp"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -33,13 +33,13 @@ func (m *Implementation) HandleDeleteResource(ctx context.Context, request mcp.C
 	if name == "" {
 		return mcp.NewToolResultError("name is required"), nil
 	}
-	if resourceType == ResourceTypeNamespaced && namespace == "" {
+	if resourceType == types.ResourceTypeNamespaced && namespace == "" {
 		return mcp.NewToolResultError("namespace is required for namespaced resources"), nil
 	}
 
 	// Create GVR
 	// Validate resource_type
-	if resourceType != ResourceTypeClustered && resourceType != ResourceTypeNamespaced {
+	if resourceType != types.ResourceTypeClustered && resourceType != types.ResourceTypeNamespaced {
 		return mcp.NewToolResultError("Invalid resource_type: " + resourceType), nil
 	}
 
@@ -52,9 +52,9 @@ func (m *Implementation) HandleDeleteResource(ctx context.Context, request mcp.C
 	// Delete resource
 	var err error
 	switch resourceType {
-	case ResourceTypeClustered:
+	case types.ResourceTypeClustered:
 		err = m.k8sClient.DeleteClusteredResource(ctx, gvr, name)
-	case ResourceTypeNamespaced:
+	case types.ResourceTypeNamespaced:
 		err = m.k8sClient.DeleteNamespacedResource(ctx, gvr, namespace, name)
 	default:
 		return mcp.NewToolResultError(fmt.Sprintf("Invalid resource_type: %s", resourceType)), nil
@@ -69,7 +69,7 @@ func (m *Implementation) HandleDeleteResource(ctx context.Context, request mcp.C
 
 // NewDeleteResourceTool creates a new delete_resource tool
 func NewDeleteResourceTool() mcp.Tool {
-	return mcp.NewTool(common.ToolDeleteResource,
+	return mcp.NewTool(types.DeleteResourceToolName,
 		mcp.WithDescription("Delete a Kubernetes resource"),
 		mcp.WithString("resource_type",
 			mcp.Description("Type of resource to delete (clustered or namespaced)"),

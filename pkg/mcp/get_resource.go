@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/StacklokLabs/mkp/pkg/common"
+	"github.com/StacklokLabs/mkp/pkg/types"
 	"github.com/mark3labs/mcp-go/mcp"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -51,13 +51,13 @@ func (m *Implementation) HandleGetResource(ctx context.Context, request mcp.Call
 	if name == "" {
 		return mcp.NewToolResultError("name is required"), nil
 	}
-	if resourceType == ResourceTypeNamespaced && namespace == "" {
+	if resourceType == types.ResourceTypeNamespaced && namespace == "" {
 		return mcp.NewToolResultError("namespace is required for namespaced resources"), nil
 	}
 
 	// Create GVR
 	// Validate resource_type
-	if resourceType != "clustered" && resourceType != ResourceTypeNamespaced {
+	if resourceType != types.ResourceTypeClustered && resourceType != types.ResourceTypeNamespaced {
 		return mcp.NewToolResultError("Invalid resource_type: " + resourceType), nil
 	}
 
@@ -84,7 +84,7 @@ func (m *Implementation) HandleGetResource(ctx context.Context, request mcp.Call
 
 // NewGetResourceTool creates a new get_resource tool
 func NewGetResourceTool() mcp.Tool {
-	return mcp.NewTool(common.ToolGetResource,
+	return mcp.NewTool(types.GetResourceToolName,
 		mcp.WithDescription("Get a Kubernetes resource or its subresource"),
 		mcp.WithString("resource_type",
 			mcp.Description("Type of resource to get (clustered or namespaced)"),

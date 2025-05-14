@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/StacklokLabs/mkp/pkg/types"
 	"github.com/mark3labs/mcp-go/mcp"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -41,7 +42,7 @@ func (m *Implementation) HandleListResources(ctx context.Context, request mcp.Ca
 	if resource == "" {
 		return mcp.NewToolResultError("resource is required"), nil
 	}
-	if resourceType == ResourceTypeNamespaced && namespace == "" {
+	if resourceType == types.ResourceTypeNamespaced && namespace == "" {
 		return mcp.NewToolResultError("namespace is required for namespaced resources"), nil
 	}
 	if labelSelector != "" {
@@ -62,9 +63,9 @@ func (m *Implementation) HandleListResources(ctx context.Context, request mcp.Ca
 	var list *unstructured.UnstructuredList
 	var err error
 	switch resourceType {
-	case "clustered":
+	case types.ResourceTypeClustered:
 		list, err = m.k8sClient.ListClusteredResources(ctx, gvr, labelSelector)
-	case ResourceTypeNamespaced:
+	case types.ResourceTypeNamespaced:
 		list, err = m.k8sClient.ListNamespacedResources(ctx, gvr, namespace, labelSelector)
 	default:
 		return mcp.NewToolResultError(fmt.Sprintf("Invalid resource_type: %s", resourceType)), nil

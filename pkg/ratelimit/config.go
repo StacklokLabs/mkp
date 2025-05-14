@@ -1,6 +1,6 @@
 package ratelimit
 
-import "github.com/StacklokLabs/mkp/pkg/common"
+import "github.com/StacklokLabs/mkp/pkg/types"
 
 // TODO: make these constants configurable
 const (
@@ -13,13 +13,12 @@ const (
 // DefaultConfig defines the default rate limits for different tools
 var DefaultConfig = map[string]int{
 	// Read operations - higher limits
-	common.ToolListResources: readLimit,
-	common.ToolGetResource:   readLimit,
-	common.ToolReadResource:  readLimit,
+	types.ListResourcesToolName: readLimit,
+	types.GetResourceToolName:   readLimit,
 
 	// Write operations - lower limits
-	common.ToolApplyResource:  writeLimit,
-	common.ToolDeleteResource: writeLimit,
+	types.ApplyResourceToolName:  writeLimit,
+	types.DeleteResourceToolName: writeLimit,
 
 	// Default for any other tool
 	DefaultTool: defaultLimit,

@@ -1,4 +1,4 @@
-package mcp
+package types
 
 // Constants for resource types
 const (
@@ -16,7 +16,4 @@ const (
 
 	// ListResourcesToolName is the name of the list_resources tool for tests
 	ListResourcesToolName = "list_resources"
-
-	// TestDeploymentName is the name of the test deployment
-	TestDeploymentName = "test-deployment"
 )

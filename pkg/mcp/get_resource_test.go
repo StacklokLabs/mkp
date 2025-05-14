@@ -14,7 +14,10 @@ import (
 	ktesting "k8s.io/client-go/testing"
 
 	"github.com/StacklokLabs/mkp/pkg/k8s"
+	"github.com/StacklokLabs/mkp/pkg/types"
 )
+
+const TestDeploymentName = "test-deployment"
 
 func TestHandleGetResourceClusteredSuccess(t *testing.T) {
 	// Create a mock k8s client
@@ -53,9 +56,9 @@ func TestHandleGetResourceClusteredSuccess(t *testing.T) {
 
 	// Create a test request
 	request := mcp.CallToolRequest{}
-	request.Params.Name = GetResourceToolName
+	request.Params.Name = types.GetResourceToolName
 	request.Params.Arguments = map[string]interface{}{
-		"resource_type": "clustered",
+		"resource_type": types.ResourceTypeClustered,
 		"group":         "apps",
 		"version":       "v1",
 		"resource":      "deployments",
@@ -119,9 +122,9 @@ func TestHandleGetResourceNamespacedSuccess(t *testing.T) {
 
 	// Create a test request
 	request := mcp.CallToolRequest{}
-	request.Params.Name = GetResourceToolName
+	request.Params.Name = types.GetResourceToolName
 	request.Params.Arguments = map[string]interface{}{
-		"resource_type": ResourceTypeNamespaced,
+		"resource_type": types.ResourceTypeNamespaced,
 		"group":         "apps",
 		"version":       "v1",
 		"resource":      "deployments",
@@ -198,9 +201,9 @@ func TestHandleGetResourceWithParameters(t *testing.T) {
 
 	// Create a test request with parameters
 	request := mcp.CallToolRequest{}
-	request.Params.Name = GetResourceToolName
+	request.Params.Name = types.GetResourceToolName
 	request.Params.Arguments = map[string]interface{}{
-		"resource_type": ResourceTypeNamespaced,
+		"resource_type": types.ResourceTypeNamespaced,
 		"group":         "",
 		"version":       "v1",
 		"resource":      "pods",
@@ -272,9 +275,9 @@ func TestHandleGetResourceWithSubresource(t *testing.T) {
 
 	// Create a test request
 	request := mcp.CallToolRequest{}
-	request.Params.Name = GetResourceToolName
+	request.Params.Name = types.GetResourceToolName
 	request.Params.Arguments = map[string]interface{}{
-		"resource_type": ResourceTypeNamespaced,
+		"resource_type": types.ResourceTypeNamespaced,
 		"group":         "apps",
 		"version":       "v1",
 		"resource":      "deployments",
@@ -338,7 +341,7 @@ func TestHandleGetResourceMissingParameters(t *testing.T) {
 		{
 			name: "Missing version",
 			arguments: map[string]interface{}{
-				"resource_type": "clustered",
+				"resource_type": types.ResourceTypeClustered,
 				"group":         "apps",
 				"resource":      "deployments",
 				"name":          "test-deployment",
@@ -348,7 +351,7 @@ func TestHandleGetResourceMissingParameters(t *testing.T) {
 		{
 			name: "Missing resource",
 			arguments: map[string]interface{}{
-				"resource_type": "clustered",
+				"resource_type": types.ResourceTypeClustered,
 				"group":         "apps",
 				"version":       "v1",
 				"name":          "test-deployment",
@@ -358,7 +361,7 @@ func TestHandleGetResourceMissingParameters(t *testing.T) {
 		{
 			name: "Missing name",
 			arguments: map[string]interface{}{
-				"resource_type": "clustered",
+				"resource_type": types.ResourceTypeClustered,
 				"group":         "apps",
 				"version":       "v1",
 				"resource":      "deployments",
@@ -368,7 +371,7 @@ func TestHandleGetResourceMissingParameters(t *testing.T) {
 		{
 			name: "Missing namespace for namespaced resource",
 			arguments: map[string]interface{}{
-				"resource_type": ResourceTypeNamespaced,
+				"resource_type": types.ResourceTypeNamespaced,
 				"group":         "apps",
 				"version":       "v1",
 				"resource":      "deployments",
@@ -382,7 +385,7 @@ func TestHandleGetResourceMissingParameters(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Create a test request
 			request := mcp.CallToolRequest{}
-			request.Params.Name = GetResourceToolName
+			request.Params.Name = types.GetResourceToolName
 			request.Params.Arguments = tc.arguments
 
 			// Test HandleGetResource
@@ -415,7 +418,7 @@ func TestHandleGetResourceInvalidResourceType(t *testing.T) {
 
 	// Create a test request with invalid resource_type
 	request := mcp.CallToolRequest{}
-	request.Params.Name = GetResourceToolName
+	request.Params.Name = types.GetResourceToolName
 	request.Params.Arguments = map[string]interface{}{
 		"resource_type": "invalid",
 		"group":         "apps",
