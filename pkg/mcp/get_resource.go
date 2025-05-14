@@ -5,9 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/StacklokLabs/mkp/pkg/types"
 	"github.com/mark3labs/mcp-go/mcp"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	"github.com/StacklokLabs/mkp/pkg/types"
 )
 
 // HandleGetResource handles the get_resource tool

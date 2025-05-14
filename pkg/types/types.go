@@ -1,3 +1,4 @@
+// Package types contains common type definitions and constants used across the MCP implementation
 package types
 
 // Constants for resource types

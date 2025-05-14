@@ -1,8 +1,9 @@
 package mcp
 
 import (
-	"github.com/StacklokLabs/mkp/pkg/types"
 	"github.com/mark3labs/mcp-go/mcp"
+
+	"github.com/StacklokLabs/mkp/pkg/types"
 )
 
 // NewListResourcesTool creates a new list_resources tool

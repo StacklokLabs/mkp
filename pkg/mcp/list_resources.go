@@ -6,12 +6,13 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/StacklokLabs/mkp/pkg/types"
 	"github.com/mark3labs/mcp-go/mcp"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	"github.com/StacklokLabs/mkp/pkg/types"
 )
 
 // HandleListResources handles the list_resources tool

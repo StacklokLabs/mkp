@@ -4,9 +4,10 @@ import (
 	"context"
 	"time"
 
-	"github.com/StacklokLabs/mkp/pkg/ratelimit"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
+
+	"github.com/StacklokLabs/mkp/pkg/ratelimit"
 )
 
 // WithTimeoutContext adds a timeout context to all tool handlers

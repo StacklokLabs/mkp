@@ -3,8 +3,9 @@ package mcp
 import (
 	"testing"
 
-	"github.com/StacklokLabs/mkp/pkg/types"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/StacklokLabs/mkp/pkg/types"
 )
 
 func TestNewListResourcesTool(t *testing.T) {

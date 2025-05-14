@@ -51,7 +51,7 @@ func WithDefaultLimit(requestsPerMinute int) RateLimiterOption {
 
 // WithTimeWindow sets the time window for rate limiting
 func WithTimeWindow(window time.Duration) RateLimiterOption {
-	return func(rl *RateLimiter) {
+	return func(_ *RateLimiter) {
 		windowSize = window
 	}
 }

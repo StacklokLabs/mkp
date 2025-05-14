@@ -1,3 +1,4 @@
+// Package ratelimit provides rate limiting functionality for the MCP server
 package ratelimit
 
 import "github.com/StacklokLabs/mkp/pkg/types"
