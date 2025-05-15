@@ -12,6 +12,7 @@ import (
 	ktesting "k8s.io/client-go/testing"
 
 	"github.com/StacklokLabs/mkp/pkg/k8s"
+	"github.com/StacklokLabs/mkp/pkg/types"
 )
 
 func TestHandleDeleteResourceClusteredSuccess(t *testing.T) {
@@ -35,9 +36,9 @@ func TestHandleDeleteResourceClusteredSuccess(t *testing.T) {
 
 	// Create a test request
 	request := mcp.CallToolRequest{}
-	request.Params.Name = DeleteResourceToolName
+	request.Params.Name = types.DeleteResourceToolName
 	request.Params.Arguments = map[string]interface{}{
-		"resource_type": "clustered",
+		"resource_type": types.ResourceTypeClustered,
 		"group":         "rbac.authorization.k8s.io",
 		"version":       "v1",
 		"resource":      "clusterroles",
@@ -84,9 +85,9 @@ func TestHandleDeleteResourceNamespacedSuccess(t *testing.T) {
 
 	// Create a test request
 	request := mcp.CallToolRequest{}
-	request.Params.Name = DeleteResourceToolName
+	request.Params.Name = types.DeleteResourceToolName
 	request.Params.Arguments = map[string]interface{}{
-		"resource_type": ResourceTypeNamespaced,
+		"resource_type": types.ResourceTypeNamespaced,
 		"group":         "",
 		"version":       "v1",
 		"resource":      "services",
@@ -139,7 +140,7 @@ func TestHandleDeleteResourceMissingParameters(t *testing.T) {
 		{
 			name: "Missing version",
 			arguments: map[string]interface{}{
-				"resource_type": "clustered",
+				"resource_type": types.ResourceTypeClustered,
 				"group":         "apps",
 				"resource":      "deployments",
 				"name":          "test-deployment",
@@ -149,7 +150,7 @@ func TestHandleDeleteResourceMissingParameters(t *testing.T) {
 		{
 			name: "Missing resource",
 			arguments: map[string]interface{}{
-				"resource_type": "clustered",
+				"resource_type": types.ResourceTypeClustered,
 				"group":         "apps",
 				"version":       "v1",
 				"name":          "test-deployment",
@@ -159,7 +160,7 @@ func TestHandleDeleteResourceMissingParameters(t *testing.T) {
 		{
 			name: "Missing name",
 			arguments: map[string]interface{}{
-				"resource_type": "clustered",
+				"resource_type": types.ResourceTypeClustered,
 				"group":         "apps",
 				"version":       "v1",
 				"resource":      "deployments",
@@ -169,7 +170,7 @@ func TestHandleDeleteResourceMissingParameters(t *testing.T) {
 		{
 			name: "Missing namespace for namespaced resource",
 			arguments: map[string]interface{}{
-				"resource_type": ResourceTypeNamespaced,
+				"resource_type": types.ResourceTypeNamespaced,
 				"group":         "apps",
 				"version":       "v1",
 				"resource":      "deployments",
@@ -183,7 +184,7 @@ func TestHandleDeleteResourceMissingParameters(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Create a test request
 			request := mcp.CallToolRequest{}
-			request.Params.Name = DeleteResourceToolName
+			request.Params.Name = types.DeleteResourceToolName
 			request.Params.Arguments = tc.arguments
 
 			// Test HandleDeleteResource
@@ -216,7 +217,7 @@ func TestHandleDeleteResourceInvalidResourceType(t *testing.T) {
 
 	// Create a test request with invalid resource_type
 	request := mcp.CallToolRequest{}
-	request.Params.Name = DeleteResourceToolName
+	request.Params.Name = types.DeleteResourceToolName
 	request.Params.Arguments = map[string]interface{}{
 		"resource_type": "invalid",
 		"group":         "apps",
@@ -265,9 +266,9 @@ func TestHandleDeleteResourceDeleteError(t *testing.T) {
 
 	// Create a test request
 	request := mcp.CallToolRequest{}
-	request.Params.Name = DeleteResourceToolName
+	request.Params.Name = types.DeleteResourceToolName
 	request.Params.Arguments = map[string]interface{}{
-		"resource_type": "clustered",
+		"resource_type": types.ResourceTypeClustered,
 		"group":         "rbac.authorization.k8s.io",
 		"version":       "v1",
 		"resource":      "clusterroles",

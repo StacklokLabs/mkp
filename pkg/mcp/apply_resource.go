@@ -9,6 +9,8 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	"github.com/StacklokLabs/mkp/pkg/types"
 )
 
 // HandleApplyResource handles the apply_resource tool
@@ -31,7 +33,7 @@ func (m *Implementation) HandleApplyResource(ctx context.Context, request mcp.Ca
 	if resource == "" {
 		return mcp.NewToolResultError("resource is required"), nil
 	}
-	if resourceType == ResourceTypeNamespaced && namespace == "" {
+	if resourceType == types.ResourceTypeNamespaced && namespace == "" {
 		return mcp.NewToolResultError("namespace is required for namespaced resources"), nil
 	}
 	if manifestMap == nil {
@@ -52,9 +54,9 @@ func (m *Implementation) HandleApplyResource(ctx context.Context, request mcp.Ca
 	var result *unstructured.Unstructured
 	var err error
 	switch resourceType {
-	case ResourceTypeClustered:
+	case types.ResourceTypeClustered:
 		result, err = m.k8sClient.ApplyClusteredResource(ctx, gvr, obj)
-	case ResourceTypeNamespaced:
+	case types.ResourceTypeNamespaced:
 		result, err = m.k8sClient.ApplyNamespacedResource(ctx, gvr, namespace, obj)
 	default:
 		return mcp.NewToolResultError(fmt.Sprintf("Invalid resource_type: %s", resourceType)), nil

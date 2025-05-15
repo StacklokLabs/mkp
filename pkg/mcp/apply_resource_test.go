@@ -13,6 +13,7 @@ import (
 	ktesting "k8s.io/client-go/testing"
 
 	"github.com/StacklokLabs/mkp/pkg/k8s"
+	"github.com/StacklokLabs/mkp/pkg/types"
 )
 
 func TestHandleApplyResourceClusteredSuccess(t *testing.T) {
@@ -59,9 +60,9 @@ func TestHandleApplyResourceClusteredSuccess(t *testing.T) {
 
 	// Create a test request
 	request := mcp.CallToolRequest{}
-	request.Params.Name = ApplyResourceToolName
+	request.Params.Name = types.ApplyResourceToolName
 	request.Params.Arguments = map[string]interface{}{
-		"resource_type": "clustered",
+		"resource_type": types.ResourceTypeClustered,
 		"group":         "rbac.authorization.k8s.io",
 		"version":       "v1",
 		"resource":      "clusterroles",
@@ -146,9 +147,9 @@ func TestHandleApplyResourceNamespacedSuccess(t *testing.T) {
 
 	// Create a test request
 	request := mcp.CallToolRequest{}
-	request.Params.Name = ApplyResourceToolName
+	request.Params.Name = types.ApplyResourceToolName
 	request.Params.Arguments = map[string]interface{}{
-		"resource_type": ResourceTypeNamespaced,
+		"resource_type": types.ResourceTypeNamespaced,
 		"group":         "",
 		"version":       "v1",
 		"resource":      "services",
@@ -216,7 +217,7 @@ func TestHandleApplyResourceMissingParameters(t *testing.T) {
 		{
 			name: "Missing version",
 			arguments: map[string]interface{}{
-				"resource_type": "clustered",
+				"resource_type": types.ResourceTypeClustered,
 				"group":         "apps",
 				"resource":      "deployments",
 				"manifest":      map[string]interface{}{},
@@ -226,7 +227,7 @@ func TestHandleApplyResourceMissingParameters(t *testing.T) {
 		{
 			name: "Missing resource",
 			arguments: map[string]interface{}{
-				"resource_type": "clustered",
+				"resource_type": types.ResourceTypeClustered,
 				"group":         "apps",
 				"version":       "v1",
 				"manifest":      map[string]interface{}{},
@@ -236,7 +237,7 @@ func TestHandleApplyResourceMissingParameters(t *testing.T) {
 		{
 			name: "Missing namespace for namespaced resource",
 			arguments: map[string]interface{}{
-				"resource_type": ResourceTypeNamespaced,
+				"resource_type": types.ResourceTypeNamespaced,
 				"group":         "apps",
 				"version":       "v1",
 				"resource":      "deployments",
@@ -247,7 +248,7 @@ func TestHandleApplyResourceMissingParameters(t *testing.T) {
 		{
 			name: "Missing manifest",
 			arguments: map[string]interface{}{
-				"resource_type": "clustered",
+				"resource_type": types.ResourceTypeClustered,
 				"group":         "apps",
 				"version":       "v1",
 				"resource":      "deployments",
@@ -260,7 +261,7 @@ func TestHandleApplyResourceMissingParameters(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Create a test request
 			request := mcp.CallToolRequest{}
-			request.Params.Name = ApplyResourceToolName
+			request.Params.Name = types.ApplyResourceToolName
 			request.Params.Arguments = tc.arguments
 
 			// Test HandleApplyResource
@@ -293,7 +294,7 @@ func TestHandleApplyResourceInvalidResourceType(t *testing.T) {
 
 	// Create a test request with invalid resource_type
 	request := mcp.CallToolRequest{}
-	request.Params.Name = ApplyResourceToolName
+	request.Params.Name = types.ApplyResourceToolName
 	request.Params.Arguments = map[string]interface{}{
 		"resource_type": "invalid",
 		"group":         "apps",
@@ -347,9 +348,9 @@ func TestHandleApplyResourceApplyError(t *testing.T) {
 
 	// Create a test request
 	request := mcp.CallToolRequest{}
-	request.Params.Name = ApplyResourceToolName
+	request.Params.Name = types.ApplyResourceToolName
 	request.Params.Arguments = map[string]interface{}{
-		"resource_type": "clustered",
+		"resource_type": types.ResourceTypeClustered,
 		"group":         "rbac.authorization.k8s.io",
 		"version":       "v1",
 		"resource":      "clusterroles",

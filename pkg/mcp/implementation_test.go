@@ -13,6 +13,7 @@ import (
 	ktesting "k8s.io/client-go/testing"
 
 	"github.com/StacklokLabs/mkp/pkg/k8s"
+	"github.com/StacklokLabs/mkp/pkg/types"
 )
 
 // mockK8sClient is a mock implementation of the k8s.Client
@@ -80,9 +81,9 @@ func TestHandleListResources(t *testing.T) {
 		Name      string
 		Arguments map[string]interface{}
 	}{
-		Name: "list_resources",
+		Name: types.ListResourcesToolName,
 		Arguments: map[string]interface{}{
-			"resource_type": "clustered",
+			"resource_type": types.ResourceTypeClustered,
 			"group":         "apps",
 			"version":       "v1",
 			"resource":      "deployments",
@@ -146,9 +147,9 @@ func TestHandleApplyResource(t *testing.T) {
 		Name      string
 		Arguments map[string]interface{}
 	}{
-		Name: "apply_resource",
+		Name: types.ApplyResourceToolName,
 		Arguments: map[string]interface{}{
-			"resource_type": "clustered",
+			"resource_type": types.ResourceTypeClustered,
 			"group":         "apps",
 			"version":       "v1",
 			"resource":      "deployments",
@@ -215,9 +216,9 @@ func TestCallTool(t *testing.T) {
 
 	// Create a test request
 	requestParams := map[string]interface{}{
-		"name": "list_resources",
+		"name": types.ListResourcesToolName,
 		"arguments": map[string]interface{}{
-			"resource_type": "clustered",
+			"resource_type": types.ResourceTypeClustered,
 			"group":         "apps",
 			"version":       "v1",
 			"resource":      "deployments",
@@ -228,7 +229,7 @@ func TestCallTool(t *testing.T) {
 	ctx := context.Background()
 	// Create a CallToolRequest
 	callToolRequest := mcp.CallToolRequest{}
-	callToolRequest.Params.Name = ListResourcesToolName
+	callToolRequest.Params.Name = types.ListResourcesToolName
 	callToolRequest.Params.Arguments = requestParams["arguments"].(map[string]interface{})
 
 	// Call the appropriate handler directly
