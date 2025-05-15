@@ -93,6 +93,7 @@ func CreateServer(k8sClient *k8s.Client, config *Config) *server.MCPServer {
 	if config.ReadWrite {
 		mcpServer.AddTool(NewApplyResourceTool(), impl.HandleApplyResource)
 		mcpServer.AddTool(NewDeleteResourceTool(), impl.HandleDeleteResource)
+		mcpServer.AddTool(NewPostResourceTool(), impl.HandlePostResource)
 	}
 
 	// Add resource templates
