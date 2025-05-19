@@ -61,11 +61,9 @@ func TestRateLimiting(t *testing.T) {
 
 	request := mcp.CallToolRequest{
 		Params: struct {
-			Name      string                 `json:"name"`
-			Arguments map[string]interface{} `json:"arguments,omitempty"`
-			Meta      *struct {
-				ProgressToken mcp.ProgressToken `json:"progressToken,omitempty"`
-			} `json:"_meta,omitempty"`
+			Name      string         `json:"name"`
+			Arguments map[string]any `json:"arguments,omitempty"`
+			Meta      *mcp.Meta      `json:"_meta,omitempty"`
 		}{
 			Name: "test-tool",
 		},
@@ -103,11 +101,9 @@ func TestMultipleSessionRateLimiting(t *testing.T) {
 
 	request := mcp.CallToolRequest{
 		Params: struct {
-			Name      string                 `json:"name"`
-			Arguments map[string]interface{} `json:"arguments,omitempty"`
-			Meta      *struct {
-				ProgressToken mcp.ProgressToken `json:"progressToken,omitempty"`
-			} `json:"_meta,omitempty"`
+			Name      string         `json:"name"`
+			Arguments map[string]any `json:"arguments,omitempty"`
+			Meta      *mcp.Meta      `json:"_meta,omitempty"`
 		}{
 			Name: "test-tool",
 		},
@@ -165,11 +161,9 @@ func TestWindowReset(t *testing.T) {
 
 	request := mcp.CallToolRequest{
 		Params: struct {
-			Name      string                 `json:"name"`
-			Arguments map[string]interface{} `json:"arguments,omitempty"`
-			Meta      *struct {
-				ProgressToken mcp.ProgressToken `json:"progressToken,omitempty"`
-			} `json:"_meta,omitempty"`
+			Name      string         `json:"name"`
+			Arguments map[string]any `json:"arguments,omitempty"`
+			Meta      *mcp.Meta      `json:"_meta,omitempty"`
 		}{
 			Name: "test-tool",
 		},
@@ -215,11 +209,9 @@ func TestToolSpecificLimits(t *testing.T) {
 	// Test default limit tool (limit = 1)
 	defaultRequest := mcp.CallToolRequest{
 		Params: struct {
-			Name      string                 `json:"name"`
-			Arguments map[string]interface{} `json:"arguments,omitempty"`
-			Meta      *struct {
-				ProgressToken mcp.ProgressToken `json:"progressToken,omitempty"`
-			} `json:"_meta,omitempty"`
+			Name      string         `json:"name"`
+			Arguments map[string]any `json:"arguments,omitempty"`
+			Meta      *mcp.Meta      `json:"_meta,omitempty"`
 		}{
 			Name: "default-tool",
 		},
@@ -238,11 +230,9 @@ func TestToolSpecificLimits(t *testing.T) {
 	// Test high limit tool (limit = 3)
 	highLimitRequest := mcp.CallToolRequest{
 		Params: struct {
-			Name      string                 `json:"name"`
-			Arguments map[string]interface{} `json:"arguments,omitempty"`
-			Meta      *struct {
-				ProgressToken mcp.ProgressToken `json:"progressToken,omitempty"`
-			} `json:"_meta,omitempty"`
+			Name      string         `json:"name"`
+			Arguments map[string]any `json:"arguments,omitempty"`
+			Meta      *mcp.Meta      `json:"_meta,omitempty"`
 		}{
 			Name: "high-limit-tool",
 		},
