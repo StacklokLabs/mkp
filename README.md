@@ -461,6 +461,17 @@ To remove the server instance completely:
 thv rm mkp
 ```
 
+
+## Contributing
+
+We welcome contributions to this MCP server! If you'd like to contribute, please review
+the [CONTRIBUTING guide](./CONTRIBUTING.md) for details on how to get started.
+
+If you run into a bug or have a feature request, please
+[open an issue](https://github.com/StacklokLabs/mkp/issues) in the
+repository or join us in the `#mcp-servers` channel on our
+[community Discord server](https://discord.gg/stacklok).
+
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the Apache v2 License - see the LICENSE file for details.
