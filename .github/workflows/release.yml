@@ -12,6 +12,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -68,3 +69,16 @@ jobs:
             --base-import-paths \
             --tags $VERSION,latest \
             ./cmd/server
+
+      - name: Sign Image with Cosign
+        env:
+          KO_DOCKER_REPO: ghcr.io/${{ steps.repo_owner.outputs.OWNER }}/mkp
+        run: |
+          TAG=$(echo "${{ steps.tag.outputs.VERSION }}" | sed 's/+/_/g')
+          # Sign the ko image
+          cosign sign -y $KO_DOCKER_REPO:$TAG
+
+          # Sign the latest tag if building from a tag
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            cosign sign -y $KO_DOCKER_REPO:latest
+          fi
