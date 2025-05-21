@@ -49,11 +49,6 @@ tasks:
       - go fmt ./...
       - golangci-lint run --fix
 
-  lint:
-    desc: Lint the code
-    cmds:
-      - golangci-lint run
-
   deps:
     desc: Update dependencies
     cmds:
