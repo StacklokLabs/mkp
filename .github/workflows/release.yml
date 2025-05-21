@@ -79,9 +79,9 @@ jobs:
         run: |
           TAG=$(echo "${{ steps.tag.outputs.VERSION }}" | sed 's/+/_/g')
           # Sign the ko image
-          cosign sign -y $KO_DOCKER_REPO:$TAG
+          cosign sign -y $KO_DOCKER_REPO/server:$TAG
 
           # Sign the latest tag if building from a tag
           if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            cosign sign -y $KO_DOCKER_REPO:latest
+            cosign sign -y $KO_DOCKER_REPO/server:latest
           fi
