@@ -96,6 +96,11 @@ To run the server with a specific kubeconfig:
 KUBECONFIG=/path/to/kubeconfig task run-with-kubeconfig
 ```
 
+To run the server on a specific port:
+```bash
+MCP_PORT=9091 task run
+```
+
 ### MCP Tools
 
 The MKP server provides the following MCP tools:
