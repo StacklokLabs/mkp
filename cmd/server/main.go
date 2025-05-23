@@ -4,9 +4,11 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -17,7 +19,7 @@ import (
 func main() {
 	// Parse command line flags
 	kubeconfig := flag.String("kubeconfig", "", "Path to kubeconfig file. If not provided, in-cluster config will be used")
-	addr := flag.String("addr", ":8080", "Address to listen on")
+	addr := flag.String("addr", getDefaultAddress(), "Address to listen on")
 	serveResources := flag.Bool("serve-resources", false,
 		"Whether to serve cluster resources as MCP resources. Setting to false reduces context size for LLMs with large clusters")
 	readWrite := flag.Bool("read-write", false,
@@ -137,4 +139,30 @@ func main() {
 	log.Println("Server shutdown complete, exiting...")
 	// Ensure we exit the program
 	os.Exit(0)
+}
+
+// getDefaultAddress returns the address to listen on based on MCP_PORT environment variable.
+// If the environment variable is not set, returns ":8080".
+// If set, validates that the port is valid and returns ":<port>".
+func getDefaultAddress() string {
+	defaultPort := ":8080"
+
+	portEnv := os.Getenv("MCP_PORT")
+	if portEnv == "" {
+		return defaultPort
+	}
+
+	port, err := strconv.Atoi(portEnv)
+	if err != nil {
+		log.Printf("Invalid port number in MCP_PORT environment variable: %v, using default port 8080", err)
+		return defaultPort
+	}
+
+	// Check if port is within valid range
+	if port < 1 || port > 65535 {
+		log.Printf("Port %d out of valid range (1-65535), using default port", port)
+		return defaultPort
+	}
+
+	return fmt.Sprintf(":%d", port)
 }
