@@ -71,15 +71,13 @@ func parsePostResourceParams(request mcp.CallToolRequest) (*postResourceParams, 
 	}
 
 	// Parse parameters for subresources
-	if paramsRaw, exists := request.Params.Arguments["parameters"]; exists && paramsRaw != nil {
-		if paramsMap, ok := paramsRaw.(map[string]interface{}); ok {
-			params.parameters = make(map[string]string)
-			for k, v := range paramsMap {
-				if strVal, ok := v.(string); ok {
-					params.parameters[k] = strVal
-				} else {
-					params.parameters[k] = fmt.Sprintf("%v", v)
-				}
+	if paramsMap := mcp.ParseStringMap(request, "parameters", nil); paramsMap != nil {
+		params.parameters = make(map[string]string)
+		for k, v := range paramsMap {
+			if strVal, ok := v.(string); ok {
+				params.parameters[k] = strVal
+			} else {
+				params.parameters[k] = fmt.Sprintf("%v", v)
 			}
 		}
 	}
