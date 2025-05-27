@@ -26,15 +26,13 @@ func (m *Implementation) HandleGetResource(ctx context.Context, request mcp.Call
 
 	// Parse parameters for subresources
 	var parameters map[string]string
-	if paramsRaw, exists := request.Params.Arguments["parameters"]; exists && paramsRaw != nil {
-		if paramsMap, ok := paramsRaw.(map[string]interface{}); ok {
-			parameters = make(map[string]string)
-			for k, v := range paramsMap {
-				if strVal, ok := v.(string); ok {
-					parameters[k] = strVal
-				} else {
-					parameters[k] = fmt.Sprintf("%v", v)
-				}
+	if paramsMap := mcp.ParseStringMap(request, "parameters", nil); paramsMap != nil {
+		parameters = make(map[string]string)
+		for k, v := range paramsMap {
+			if strVal, ok := v.(string); ok {
+				parameters[k] = strVal
+			} else {
+				parameters[k] = fmt.Sprintf("%v", v)
 			}
 		}
 	}
