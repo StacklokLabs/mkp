@@ -413,17 +413,38 @@ task deps
 
 ## Running as an MCP Server with ToolHive
 
-MKP can be run as a Model Context Protocol (MCP) server using [ToolHive](https://github.com/StacklokLabs/toolhive), which simplifies the deployment and management of MCP servers.
+MKP can be run as a Model Context Protocol (MCP) server using [ToolHive](https://github.com/stacklok/toolhive), which simplifies the deployment and management of MCP servers.
 
 ### Prerequisites
 
-1. Install ToolHive by following the [installation instructions](https://github.com/StacklokLabs/toolhive#installation).
+1. Install ToolHive by following the [installation instructions](https://github.com/stacklok/toolhive#installation).
 2. Ensure you have Docker or Podman installed on your system.
 3. Configure your Kubernetes credentials (kubeconfig) for the cluster you want to interact with.
 
-### Running MKP with ToolHive
+### Running MKP with ToolHive (Recommended)
 
-To run MKP as an MCP server using ToolHive:
+The easiest way to run MKP is using the packaged version available in ToolHive's registry:
+
+```bash
+# Enable auto-discovery to automatically configure supported clients
+thv config auto-discovery true
+
+# Run the MKP server (packaged as 'k8s' in ToolHive)
+# Mount your kubeconfig so the server can access your Kubernetes cluster
+thv run --volume $HOME/.kube:/home/nonroot/.kube:ro k8s
+
+# List running servers
+thv list
+
+# Get detailed information about the server
+thv registry info k8s
+```
+
+This will mount your Kubernetes credentials and make the server available to your MCP-compatible clients.
+
+### Advanced Usage with Custom Configuration
+
+For advanced users who need custom configuration, you can also run MKP using the container image directly:
 
 ```bash
 # Run the MKP server using the published container image
@@ -442,7 +463,7 @@ To use a specific version instead of the latest:
 thv run --name mkp --transport sse --target-port 8080 --volume $HOME/.kube:/home/nonroot/.kube:ro ghcr.io/stackloklabs/mkp/server:v0.0.1
 ```
 
-### Verifying the MKP Server is Running
+### Managing the MKP Server
 
 To verify that the MKP server is running:
 
@@ -452,17 +473,23 @@ thv list
 
 This will show all running MCP servers managed by ToolHive, including the MKP server.
 
-### Stopping the MKP Server
-
 To stop the MKP server:
 
 ```bash
+# For packaged version
+thv stop k8s
+
+# For custom named version
 thv stop mkp
 ```
 
 To remove the server instance completely:
 
 ```bash
+# For packaged version
+thv rm k8s
+
+# For custom named version
 thv rm mkp
 ```
 
