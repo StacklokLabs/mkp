@@ -1,13 +1,13 @@
 # Security Policy
 
-The ToolHive community take security seriously! We appreciate your efforts to
-disclose your findings responsibly and will make every effort to acknowledge
+The StacklokLabs community take security seriously! We appreciate your efforts
+to disclose your findings responsibly and will make every effort to acknowledge
 your contributions.
 
 ## Reporting a vulnerability
 
 To report a security issue, please use the GitHub Security Advisory
-["Report a Vulnerability"](https://github.com/StacklokLabs/toolhive/security/advisories/new)
+["Report a Vulnerability"](https://github.com/StacklokLabs/mkp/security/advisories/new)
 tab.
 
 If you are unable to access GitHub you can also email us at
@@ -19,7 +19,7 @@ additional files to reproduce the vulnerability.
 If you are only comfortable sharing under GPG, please start by sending an email
 requesting a public PGP key to use for encryption.
 
-### Contacting the ToolHive security team
+### Contacting the StacklokLabs security team
 
 Contact the team by sending email to
 [security@stacklok.com](mailto:security@stacklok.com).
@@ -28,7 +28,7 @@ Contact the team by sending email to
 
 ### Private disclosure processes
 
-The ToolHive community asks that all suspected vulnerabilities be handled in
+The StacklokLabs community asks that all suspected vulnerabilities be handled in
 accordance with
 [Responsible Disclosure model](https://en.wikipedia.org/wiki/Responsible_disclosure).
 
@@ -46,8 +46,8 @@ with the fix and release process.
 
 ## Patch, release, and public communication
 
-For each vulnerability, the ToolHive security team will coordinate to create the
-fix and release, and notify the rest of the community.
+For each vulnerability, the StacklokLabs security team will coordinate to create
+the fix and release, and notify the rest of the community.
 
 All of the timelines below are suggestions and assume a Private Disclosure.
 
@@ -58,7 +58,7 @@ All of the timelines below are suggestions and assume a Private Disclosure.
 - If the fix relies on another upstream project's disclosure timeline, that will
   adjust the process as well.
 - We will work with the upstream project to fit their timeline and best protect
-  ToolHive users.
+  StacklokLabs users.
 - The Security team will give advance notice to the Private Distributors list
   before the fix is released.
 
@@ -80,19 +80,17 @@ These steps should be completed within the 1-7 days of Disclosure.
 - Create a new
   [security advisory](https://docs.github.com/en/code-security/security-advisories/)
   in affected repository by visiting
-  `https://github.com/StacklokLabs/toolhive/security/advisories/new`
+  `https://github.com/StacklokLabs/mkp/security/advisories/new`
 - As many details as possible should be entered such as versions affected, CVE
   (if available yet). As more information is discovered, edit and update the
   advisory accordingly.
 - Use the CVSS calculator to score a severity level.
-  ![CVSS Calculator](/images/calc.png)
 - Add collaborators from codeowners team only (outside members can only be added
   after approval from the security team)
 - The reporter may be added to the issue to assist with review, but **only
   reporters who have contacted the security team using a private channel**.
-- Select 'Request CVE' ![Request CVE](/docs/static/img/cve.png)
+- Select 'Request CVE'
 - The security team / Fix Team create a private temporary fork
-  ![Security Fork](/docs/static/img/fork.png)
 - The Fix team performs all work in a 'security advisory' within its temporary
   fork
 - CI can be checked locally using the [act](https://github.com/nektos/act)
@@ -130,7 +128,6 @@ realistic timeline can be communicated to users.
   branch of the security advisory
 - The security team will merge the security advisory / temporary fork and its
   commits into the main branch of the affected repository
-  ![Security Advisory](docs/images/publish.png)
 - The security team will ensure all the binaries are built, signed, publicly
   available, and functional.
 - The security team will announce the new releases, the CVE number, severity,
@@ -140,7 +137,7 @@ realistic timeline can be communicated to users.
   version. An announcement template is available below. The announcement will be
   sent to the following channels:
 - A link to fix will be posted to the
-  [Stacklok Discord Server](https://discord.gg/stacklok) in the #toolhive
+  [Stacklok Discord Server](https://discord.gg/stacklok) in the #mcp-servers
   channel.
 
 ## Retrospective

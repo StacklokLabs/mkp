@@ -1,9 +1,9 @@
-# Contributing to mkp <!-- omit from toc -->
+# Contributing to `mkp` <!-- omit from toc -->
 
-First off, thank you for taking the time to contribute to mkp! :+1: :tada:
-mkp is released under the Apache 2.0 license. If you would like to
-contribute something or want to hack on the code, this document should help you
-get started. You can find some hints for starting development in mkp's
+First off, thank you for taking the time to contribute to mkp! :+1: :tada: mkp
+is released under the Apache 2.0 license. If you would like to contribute
+something or want to hack on the code, this document should help you get
+started. You can find some hints for starting development in mkp's
 [README](https://github.com/StacklokLabs/mkp/blob/main/README.md).
 
 ## Table of contents <!-- omit from toc -->
@@ -14,7 +14,6 @@ get started. You can find some hints for starting development in mkp's
   - [Using GitHub Issues](#using-github-issues)
   - [Not sure how to start contributing?](#not-sure-how-to-start-contributing)
   - [Pull request process](#pull-request-process)
-  - [Contributing to docs](#contributing-to-docs)
   - [Commit message guidelines](#commit-message-guidelines)
 
 ## Code of conduct
@@ -37,8 +36,8 @@ security vulnerabilities using GitHub issues; instead, please follow this
 ### Using GitHub Issues
 
 We use GitHub issues to track bugs and enhancements. If you have a general usage
-question, please ask in
-[mkp's discussion forum](https://discord.gg/stacklok).
+question, please ask in the #mcp-servers channel of the
+[Stacklok Discord server](https://discord.gg/stacklok).
 
 If you are reporting a bug, please help to speed up problem diagnosis by
 providing as much information as possible. Ideally, that would include a small
@@ -51,7 +50,10 @@ PRs to resolve existing issues are greatly appreciated and issues labeled as
 are a great place to start!
 
 ### Pull request process
--All commits must include a Signed-off-by trailer at the end of each commit message to indicate that the contributor agrees to the Developer Certificate of Origin. For additional details, check out the [DCO instructions](dco.md).
+
+-All commits must include a Signed-off-by trailer at the end of each commit
+message to indicate that the contributor agrees to the Developer Certificate of
+Origin. For additional details, check out the [DCO instructions](dco.md).
 
 - Create an issue outlining the fix or feature.
 - Fork the mkp repository to your own GitHub account and clone it locally.
@@ -61,14 +63,9 @@ are a great place to start!
 - Open a PR by ensuring the title and its description reflect the content of the
   PR.
 - Ensure that CI passes, if it fails, fix the failures.
-- Every pull request requires a review from the core mkp team before
-  merging.
+- Every pull request requires a review from the core mkp team before merging.
 - Once approved, all of your commits will be squashed into a single commit with
   your PR title.
-
-### Contributing to docs
-
-TBD
 
 ### Commit message guidelines
 
