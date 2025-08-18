@@ -367,6 +367,28 @@ The resource URIs follow these formats:
 
 ### Configuration
 
+#### Transport Protocol
+
+MKP supports two transport protocols for the MCP server:
+
+- **SSE (Server-Sent Events)**: The default transport protocol, suitable for most use cases
+- **Streamable HTTP**: A streaming HTTP transport that supports both direct HTTP responses and SSE streams, useful for environments like ToolHive that require HTTP-based communication
+
+You can configure the transport protocol using either a CLI flag or an environment variable:
+
+```bash
+# Using CLI flag
+./build/mkp-server --transport=streamable-http
+
+# Using environment variable
+MCP_TRANSPORT=streamable-http ./build/mkp-server
+
+# Default (SSE)
+./build/mkp-server
+```
+
+The `MCP_TRANSPORT` environment variable is automatically set by ToolHive when running MKP in that environment.
+
 #### Controlling Resource Discovery
 
 By default, MKP serves all Kubernetes resources as MCP resources, which provides

@@ -145,3 +145,8 @@ func StopServer() {
 func CreateSSEServer(mcpServer *server.MCPServer) *server.SSEServer {
 	return server.NewSSEServer(mcpServer)
 }
+
+// CreateStreamableHTTPServer creates a new StreamableHTTP server for the MCP server
+func CreateStreamableHTTPServer(mcpServer *server.MCPServer) *server.StreamableHTTPServer {
+	return server.NewStreamableHTTPServer(mcpServer)
+}
