@@ -1,0 +1,15 @@
+builds:
+- id: mkp-server
+  dir: .
+  main: ./cmd/server
+  ldflags:
+  - -X main.version={{.Env.VERSION}}
+  labels:
+    org.opencontainers.image.created: "{{.Env.CREATION_TIME}}"
+    org.opencontainers.image.description: "MKP - Kubernetes MCP Server"
+    org.opencontainers.image.licenses: "Apache-2.0"
+    org.opencontainers.image.revision: "{{.Env.GITHUB_SHA}}"
+    org.opencontainers.image.source: "{{.Env.GITHUB_SERVER_URL}}/{{.Env.GITHUB_REPOSITORY}}"
+    org.opencontainers.image.title: "mkp"
+    org.opencontainers.image.url: "{{.Env.GITHUB_SERVER_URL}}/{{.Env.GITHUB_REPOSITORY}}"
+    org.opencontainers.image.version: "{{.Env.VERSION}}"

@@ -1,0 +1,70 @@
+version: '3'
+
+vars:
+  BINARY_NAME: mkp-server
+  BUILD_DIR: build
+  MAIN_PACKAGE: ./cmd/server
+
+tasks:
+  default:
+    desc: Run tests and build the application
+    deps: [test, build]
+
+  build:
+    desc: Build the application
+    cmds:
+      - mkdir -p {{.BUILD_DIR}}
+      - go build -o {{.BUILD_DIR}}/{{.BINARY_NAME}} {{.MAIN_PACKAGE}}
+
+  run:
+    desc: Run the application
+    deps: [build]
+    cmds:
+      - ./{{.BUILD_DIR}}/{{.BINARY_NAME}}
+
+  lint:
+    desc: Run linting tools
+    cmds:
+      - golangci-lint run ./...
+      - go vet ./...
+
+  lint-fix:
+    desc: Run linting tools, and apply fixes.
+    cmds:
+      - golangci-lint run --fix ./...
+
+  test:
+    desc: Run tests
+    cmds:
+      - go test -v ./...
+
+  clean:
+    desc: Clean the build directory
+    cmds:
+      - rm -rf {{.BUILD_DIR}}
+
+  fmt:
+    desc: Format the code
+    cmds:
+      - go fmt ./...
+      - golangci-lint run --fix
+
+  deps:
+    desc: Update dependencies
+    cmds:
+      - go mod tidy
+
+  install:
+    desc: Install dependencies
+    cmds:
+      - go mod download
+
+  run-with-kubeconfig:
+    desc: Build and run with specific kubeconfig
+    cmds:
+      - mkdir -p {{.BUILD_DIR}}
+      - go build -o {{.BUILD_DIR}}/{{.BINARY_NAME}} {{.MAIN_PACKAGE}}
+      - ./{{.BUILD_DIR}}/{{.BINARY_NAME}} --kubeconfig={{.KUBECONFIG}}
+    vars:
+      KUBECONFIG:
+        sh: echo ${KUBECONFIG:-"~/.kube/config"}
