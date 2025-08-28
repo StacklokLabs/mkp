@@ -199,8 +199,16 @@ Parameters:
 - `version` (required): API version (e.g., v1, v1beta1)
 - `resource` (required): Resource name (e.g., deployments, services)
 - `namespace`: Namespace (required for namespaced resources)
+- `label_selector`: Kubernetes label selector for filtering resources (optional)
+- `include_annotations`: Whether to include annotations in the output (default: true)
+- `exclude_annotation_keys`: List of annotation keys to exclude from output (supports wildcards with *)
+- `include_annotation_keys`: List of annotation keys to include in output (if specified, only these are included)
 
-Example:
+##### Annotation Filtering
+
+The `list_resources` tool provides powerful annotation filtering capabilities to control metadata output size and prevent truncation issues with large annotations (such as GPU node annotations).
+
+**Basic Usage:**
 
 ```json
 {
@@ -214,6 +222,64 @@ Example:
   }
 }
 ```
+
+**Exclude specific annotations (useful for GPU nodes):**
+
+```json
+{
+  "name": "list_resources",
+  "arguments": {
+    "resource_type": "clustered",
+    "group": "",
+    "version": "v1",
+    "resource": "nodes",
+    "exclude_annotation_keys": [
+      "nvidia.com/*",
+      "kubectl.kubernetes.io/last-applied-configuration"
+    ]
+  }
+}
+```
+
+**Include only specific annotations:**
+
+```json
+{
+  "name": "list_resources",
+  "arguments": {
+    "resource_type": "namespaced",
+    "group": "",
+    "version": "v1",
+    "resource": "pods",
+    "namespace": "default",
+    "include_annotation_keys": ["app", "version", "prometheus.io/scrape"]
+  }
+}
+```
+
+**Disable annotations completely for maximum performance:**
+
+```json
+{
+  "name": "list_resources",
+  "arguments": {
+    "resource_type": "namespaced",
+    "group": "",
+    "version": "v1",
+    "resource": "pods",
+    "namespace": "default",
+    "include_annotations": false
+  }
+}
+```
+
+**Annotation Filtering Rules:**
+
+- By default, `kubectl.kubernetes.io/last-applied-configuration` is excluded to prevent large configuration data
+- `exclude_annotation_keys` supports wildcard patterns using `*` (e.g., `nvidia.com/*` excludes all NVIDIA annotations)
+- When `include_annotation_keys` is specified, it takes precedence and only those annotations are included
+- Setting `include_annotations: false` completely removes all annotations from the output
+- Wildcard patterns only support `*` at the end of the key (e.g., `nvidia.com/*`)
 
 #### apply_resource
 

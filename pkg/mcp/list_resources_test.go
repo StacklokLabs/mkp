@@ -180,6 +180,284 @@ func TestHandleListResourcesNamespacedSuccess(t *testing.T) {
 	assert.NotContains(t, textContent.Text, "spec", "Result should not contain the spec field")
 }
 
+func TestFilterAnnotations(t *testing.T) {
+	tests := []struct {
+		name        string
+		annotations map[string]string
+		includeKeys []string
+		excludeKeys []string
+		expected    map[string]string
+	}{
+		{
+			name: "exclude specific keys",
+			annotations: map[string]string{
+				"kubectl.kubernetes.io/last-applied-configuration": "large-config",
+				"nvidia.com/gpu.present":                           "true",
+				"app":                                              "test",
+			},
+			includeKeys: []string{},
+			excludeKeys: []string{"kubectl.kubernetes.io/last-applied-configuration", "nvidia.com/gpu.present"},
+			expected: map[string]string{
+				"app": "test",
+			},
+		},
+		{
+			name: "exclude with wildcard",
+			annotations: map[string]string{
+				"nvidia.com/gpu.present": "true",
+				"nvidia.com/gpu.count":   "2",
+				"app":                    "test",
+				"version":                "1.0",
+			},
+			includeKeys: []string{},
+			excludeKeys: []string{"nvidia.com/*"},
+			expected: map[string]string{
+				"app":     "test",
+				"version": "1.0",
+			},
+		},
+		{
+			name: "include specific keys only",
+			annotations: map[string]string{
+				"kubectl.kubernetes.io/last-applied-configuration": "large-config",
+				"nvidia.com/gpu.present":                           "true",
+				"app":                                              "test",
+				"version":                                          "1.0",
+			},
+			includeKeys: []string{"app", "version"},
+			excludeKeys: []string{},
+			expected: map[string]string{
+				"app":     "test",
+				"version": "1.0",
+			},
+		},
+		{
+			name:        "nil annotations",
+			annotations: nil,
+			includeKeys: []string{},
+			excludeKeys: []string{"test"},
+			expected:    nil,
+		},
+		{
+			name:        "empty annotations",
+			annotations: map[string]string{},
+			includeKeys: []string{},
+			excludeKeys: []string{"test"},
+			expected:    map[string]string{},
+		},
+		{
+			name: "include keys takes precedence over exclude",
+			annotations: map[string]string{
+				"app":     "test",
+				"version": "1.0",
+				"debug":   "true",
+			},
+			includeKeys: []string{"app"},
+			excludeKeys: []string{"app"}, // This should be ignored since includeKeys is specified
+			expected: map[string]string{
+				"app": "test",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := filterAnnotations(tt.annotations, tt.includeKeys, tt.excludeKeys)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestMatchesPattern(t *testing.T) {
+	tests := []struct {
+		name     string
+		key      string
+		pattern  string
+		expected bool
+	}{
+		{
+			name:     "exact match",
+			key:      "app",
+			pattern:  "app",
+			expected: true,
+		},
+		{
+			name:     "no match",
+			key:      "app",
+			pattern:  "version",
+			expected: false,
+		},
+		{
+			name:     "wildcard match",
+			key:      "nvidia.com/gpu.present",
+			pattern:  "nvidia.com/*",
+			expected: true,
+		},
+		{
+			name:     "wildcard no match",
+			key:      "app",
+			pattern:  "nvidia.com/*",
+			expected: false,
+		},
+		{
+			name:     "wildcard partial match",
+			key:      "nvidia.com.gpu.present",
+			pattern:  "nvidia.com/*",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := matchesPattern(tt.key, tt.pattern)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestHandleListResourcesWithAnnotationFiltering(t *testing.T) {
+	// Create a mock k8s client
+	mockClient := &k8s.Client{}
+
+	// Create a fake dynamic client
+	scheme := runtime.NewScheme()
+
+	// Register list kinds for the resources we'll be testing
+	listKinds := map[schema.GroupVersionResource]string{
+		{Group: "", Version: "v1", Resource: "pods"}: "PodList",
+	}
+
+	fakeDynamicClient := fake.NewSimpleDynamicClientWithCustomListKinds(scheme, listKinds)
+
+	// Add a fake list response with annotations
+	fakeDynamicClient.PrependReactor("list", "pods", func(_ ktesting.Action) (handled bool, ret runtime.Object, err error) {
+		list := &unstructured.UnstructuredList{
+			Items: []unstructured.Unstructured{
+				{
+					Object: map[string]interface{}{
+						"apiVersion": "v1",
+						"kind":       "Pod",
+						"metadata": map[string]interface{}{
+							"name":      "test-pod",
+							"namespace": "default",
+							"annotations": map[string]interface{}{
+								"kubectl.kubernetes.io/last-applied-configuration": "large-config-data",
+								"nvidia.com/gpu.present":                           "true",
+								"nvidia.com/gpu.count":                             "2",
+								"app":                                              "test-app",
+								"version":                                          "1.0",
+							},
+						},
+					},
+				},
+			},
+		}
+		return true, list, nil
+	})
+
+	// Set the dynamic client
+	mockClient.SetDynamicClient(fakeDynamicClient)
+
+	// Create an implementation
+	impl := NewImplementation(mockClient)
+
+	tests := []struct {
+		name                  string
+		includeAnnotations    interface{}
+		excludeAnnotationKeys interface{}
+		includeAnnotationKeys interface{}
+		shouldContain         []string
+		shouldNotContain      []string
+	}{
+		{
+			name:                  "default behavior - exclude last-applied-configuration",
+			includeAnnotations:    nil, // defaults to true
+			excludeAnnotationKeys: nil, // defaults to ["kubectl.kubernetes.io/last-applied-configuration"]
+			includeAnnotationKeys: nil,
+			shouldContain:         []string{"nvidia.com/gpu.present", "app", "version"},
+			shouldNotContain:      []string{"kubectl.kubernetes.io/last-applied-configuration"},
+		},
+		{
+			name:                  "exclude nvidia annotations",
+			includeAnnotations:    true,
+			excludeAnnotationKeys: []interface{}{"nvidia.com/*", "kubectl.kubernetes.io/last-applied-configuration"},
+			includeAnnotationKeys: nil,
+			shouldContain:         []string{"app", "version"},
+			shouldNotContain:      []string{"nvidia.com/gpu.present", "nvidia.com/gpu.count", "kubectl.kubernetes.io/last-applied-configuration"},
+		},
+		{
+			name:                  "include only specific annotations",
+			includeAnnotations:    true,
+			excludeAnnotationKeys: nil,
+			includeAnnotationKeys: []interface{}{"app", "version"},
+			shouldContain:         []string{"app", "version"},
+			shouldNotContain:      []string{"nvidia.com/gpu.present", "kubectl.kubernetes.io/last-applied-configuration"},
+		},
+		{
+			name:                  "disable annotations completely",
+			includeAnnotations:    false,
+			excludeAnnotationKeys: nil,
+			includeAnnotationKeys: nil,
+			shouldContain:         []string{},
+			shouldNotContain:      []string{"app", "version", "nvidia.com/gpu.present"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a test request
+			arguments := map[string]interface{}{
+				"resource_type": types.ResourceTypeNamespaced,
+				"group":         "",
+				"version":       "v1",
+				"resource":      "pods",
+				"namespace":     "default",
+			}
+
+			// Add annotation filtering parameters
+			if tt.includeAnnotations != nil {
+				arguments["include_annotations"] = tt.includeAnnotations
+			}
+			if tt.excludeAnnotationKeys != nil {
+				arguments["exclude_annotation_keys"] = tt.excludeAnnotationKeys
+			}
+			if tt.includeAnnotationKeys != nil {
+				arguments["include_annotation_keys"] = tt.includeAnnotationKeys
+			}
+
+			request := mcp.CallToolRequest{
+				Params: mcp.CallToolParams{
+					Name:      types.ListResourcesToolName,
+					Arguments: arguments,
+				},
+			}
+
+			// Test HandleListResources
+			ctx := context.Background()
+			result, err := impl.HandleListResources(ctx, request)
+
+			// Verify there was no error
+			assert.NoError(t, err, "HandleListResources should not return an error")
+			assert.NotNil(t, result, "Result should not be nil")
+			assert.False(t, result.IsError, "Result should not be an error")
+
+			// Get the result content
+			textContent, ok := mcp.AsTextContent(result.Content[0])
+			assert.True(t, ok, "Content should be TextContent")
+
+			// Check what should be contained
+			for _, item := range tt.shouldContain {
+				assert.Contains(t, textContent.Text, item, fmt.Sprintf("Result should contain %s", item))
+			}
+
+			// Check what should not be contained
+			for _, item := range tt.shouldNotContain {
+				assert.NotContains(t, textContent.Text, item, fmt.Sprintf("Result should not contain %s", item))
+			}
+		})
+	}
+}
+
 func TestHandleListResourcesMissingParameters(t *testing.T) {
 	// Create a mock k8s client
 	mockClient := &k8s.Client{}
