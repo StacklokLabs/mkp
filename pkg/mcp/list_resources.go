@@ -33,6 +33,12 @@ func (m *Implementation) HandleListResources(ctx context.Context, request mcp.Ca
 	namespace := mcp.ParseString(request, "namespace", "")
 	labelSelector := mcp.ParseString(request, "label_selector", "")
 
+	// Parse new annotation filtering parameters
+	includeAnnotations := request.GetBool("include_annotations", true)
+	excludeAnnotationKeys := request.GetStringSlice(
+		"exclude_annotation_keys", []string{"kubectl.kubernetes.io/last-applied-configuration"})
+	includeAnnotationKeys := request.GetStringSlice("include_annotation_keys", []string{})
+
 	// Validate parameters
 	if resourceType == "" {
 		return mcp.NewToolResultError("resource_type is required"), nil
@@ -90,10 +96,13 @@ func (m *Implementation) HandleListResources(ctx context.Context, request mcp.Ca
 
 	// Extract metadata from each resource
 	for _, item := range list.Items {
-		// Get annotations and filter out the last-applied-configuration annotation
-		annotations := item.GetAnnotations()
-		if annotations != nil {
-			delete(annotations, "kubectl.kubernetes.io/last-applied-configuration")
+		// Process annotations based on parameters
+		var annotations map[string]string
+		if includeAnnotations {
+			rawAnnotations := item.GetAnnotations()
+			if rawAnnotations != nil {
+				annotations = filterAnnotations(rawAnnotations, includeAnnotationKeys, excludeAnnotationKeys)
+			}
 		}
 
 		metadata := metav1.PartialObjectMetadata{
