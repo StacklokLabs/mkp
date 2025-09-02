@@ -134,32 +134,58 @@ func (c *Client) ListAPIResources(_ context.Context) ([]*metav1.APIResourceList,
 }
 
 // ListClusteredResources returns all clustered resources of the specified group/version/kind
+// with optional pagination support via limit and continueToken parameters
 func (c *Client) ListClusteredResources(
 	ctx context.Context,
 	gvr schema.GroupVersionResource,
 	labelSelector string,
+	limit int64,
+	continueToken string,
 ) (*unstructured.UnstructuredList, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	return c.dynamicClient.Resource(gvr).List(ctx, metav1.ListOptions{
+	listOptions := metav1.ListOptions{
 		LabelSelector: labelSelector,
-	})
+	}
+
+	// Add pagination options if provided
+	if limit > 0 {
+		listOptions.Limit = limit
+	}
+	if continueToken != "" {
+		listOptions.Continue = continueToken
+	}
+
+	return c.dynamicClient.Resource(gvr).List(ctx, listOptions)
 }
 
 // ListNamespacedResources returns all namespaced resources of the specified group/version/kind in the given namespace
+// with optional pagination support via limit and continueToken parameters
 func (c *Client) ListNamespacedResources(
 	ctx context.Context,
 	gvr schema.GroupVersionResource,
 	namespace string,
 	labelSelector string,
+	limit int64,
+	continueToken string,
 ) (*unstructured.UnstructuredList, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	return c.dynamicClient.Resource(gvr).Namespace(namespace).List(ctx, metav1.ListOptions{
+	listOptions := metav1.ListOptions{
 		LabelSelector: labelSelector,
-	})
+	}
+
+	// Add pagination options if provided
+	if limit > 0 {
+		listOptions.Limit = limit
+	}
+	if continueToken != "" {
+		listOptions.Continue = continueToken
+	}
+
+	return c.dynamicClient.Resource(gvr).Namespace(namespace).List(ctx, listOptions)
 }
 
 // ApplyClusteredResource creates or updates a clustered resource
