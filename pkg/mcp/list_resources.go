@@ -39,6 +39,10 @@ func (m *Implementation) HandleListResources(ctx context.Context, request mcp.Ca
 		"exclude_annotation_keys", []string{"kubectl.kubernetes.io/last-applied-configuration"})
 	includeAnnotationKeys := request.GetStringSlice("include_annotation_keys", []string{})
 
+	// Parse pagination parameters
+	limit := request.GetInt("limit", 0) // 0 means no limit
+	continueToken := request.GetString("continue", "")
+
 	// Validate parameters
 	if resourceType == "" {
 		return mcp.NewToolResultError("resource_type is required"), nil
@@ -66,14 +70,14 @@ func (m *Implementation) HandleListResources(ctx context.Context, request mcp.Ca
 		Resource: resource,
 	}
 
-	// List resources
+	// List resources with pagination support
 	var list *unstructured.UnstructuredList
 	var err error
 	switch resourceType {
 	case types.ResourceTypeClustered:
-		list, err = m.k8sClient.ListClusteredResources(ctx, gvr, labelSelector)
+		list, err = m.k8sClient.ListClusteredResources(ctx, gvr, labelSelector, int64(limit), continueToken)
 	case types.ResourceTypeNamespaced:
-		list, err = m.k8sClient.ListNamespacedResources(ctx, gvr, namespace, labelSelector)
+		list, err = m.k8sClient.ListNamespacedResources(ctx, gvr, namespace, labelSelector, int64(limit), continueToken)
 	default:
 		return mcp.NewToolResultError(fmt.Sprintf("Invalid resource_type: %s", resourceType)), nil
 	}
@@ -90,6 +94,7 @@ func (m *Implementation) HandleListResources(ctx context.Context, request mcp.Ca
 		},
 		ListMeta: metav1.ListMeta{
 			ResourceVersion: list.GetResourceVersion(),
+			Continue:        list.GetContinue(),
 		},
 		Items: make([]metav1.PartialObjectMetadata, 0, len(list.Items)),
 	}

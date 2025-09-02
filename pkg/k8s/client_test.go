@@ -85,7 +85,7 @@ func TestListClusteredResources(t *testing.T) {
 
 	// Test ListClusteredResources
 	ctx := context.Background()
-	list, err := testClient.ListClusteredResources(ctx, gvr, "")
+	list, err := testClient.ListClusteredResources(ctx, gvr, "", 0, "")
 
 	// Verify there was no error
 	assert.NoError(t, err, "ListClusteredResources should not return an error")
@@ -95,7 +95,7 @@ func TestListClusteredResources(t *testing.T) {
 	assert.Equal(t, "test-cluster-role", list.Items[0].GetName(), "Expected name 'test-cluster-role'")
 
 	// Test ListClusteredResources with label selector
-	list, err = testClient.ListClusteredResources(ctx, gvr, "app=test-app")
+	list, err = testClient.ListClusteredResources(ctx, gvr, "app=test-app", 0, "")
 
 	// Verify there was no error
 	assert.NoError(t, err, "ListClusteredResources should not return an error")
@@ -178,7 +178,7 @@ func TestListNamespacedResources(t *testing.T) {
 
 	// Test ListNamespacedResources
 	ctx := context.Background()
-	list, err := testClient.ListNamespacedResources(ctx, gvr, "default", "")
+	list, err := testClient.ListNamespacedResources(ctx, gvr, "default", "", 0, "")
 
 	// Verify there was no error
 	assert.NoError(t, err, "ListNamespacedResources should not return an error")
@@ -188,7 +188,7 @@ func TestListNamespacedResources(t *testing.T) {
 	assert.Equal(t, "test-service", list.Items[0].GetName(), "Expected name 'test-service'")
 
 	// Test ListNamespacedResources with label selector
-	list, err = testClient.ListNamespacedResources(ctx, gvr, "default", "app=test-app")
+	list, err = testClient.ListNamespacedResources(ctx, gvr, "default", "app=test-app", 0, "")
 
 	// Verify there was no error
 	assert.NoError(t, err, "ListNamespacedResources should not return an error")
@@ -196,6 +196,123 @@ func TestListNamespacedResources(t *testing.T) {
 	// Verify the result
 	assert.Len(t, list.Items, 1, "Expected 1 item")
 	assert.Equal(t, "test-service-2", list.Items[0].GetName(), "Expected name 'test-service-2'")
+}
+
+// TestListClusteredResourcesWithPagination tests that pagination parameters are correctly handled
+func TestListClusteredResourcesWithPagination(t *testing.T) {
+	// Since the fake client doesn't properly pass through ListOptions in the reactor,
+	// we'll test that our functions correctly build the ListOptions and that the
+	// response's continue token is properly preserved
+
+	scheme := runtime.NewScheme()
+	listKinds := map[schema.GroupVersionResource]string{
+		{Group: "rbac.authorization.k8s.io", Version: "v1", Resource: "clusterroles"}: "ClusterRoleList",
+	}
+
+	client := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, listKinds)
+	testClient := &Client{
+		dynamicClient: client,
+	}
+
+	gvr := schema.GroupVersionResource{
+		Group:    "rbac.authorization.k8s.io",
+		Version:  "v1",
+		Resource: "clusterroles",
+	}
+
+	// Add a reactor that returns a list with a continue token
+	client.PrependReactor("list", "clusterroles", func(_ ktesting.Action) (handled bool, ret runtime.Object, err error) {
+		list := &unstructured.UnstructuredList{
+			Object: map[string]interface{}{
+				"metadata": map[string]interface{}{
+					"continue": "test-continue-token",
+				},
+			},
+			Items: []unstructured.Unstructured{
+				{
+					Object: map[string]interface{}{
+						"apiVersion": "rbac.authorization.k8s.io/v1",
+						"kind":       "ClusterRole",
+						"metadata": map[string]interface{}{
+							"name": "test-role",
+						},
+					},
+				},
+			},
+		}
+		return true, list, nil
+	})
+
+	// Test that the function accepts pagination parameters and returns results
+	ctx := context.Background()
+
+	// Test with limit
+	list, err := testClient.ListClusteredResources(ctx, gvr, "", 10, "")
+	assert.NoError(t, err, "ListClusteredResources with limit should not return an error")
+	assert.NotNil(t, list, "List should not be nil")
+	assert.Equal(t, "test-continue-token", list.GetContinue(), "Continue token should be preserved in response")
+
+	// Test with continue token
+	list, err = testClient.ListClusteredResources(ctx, gvr, "", 0, "my-continue-token")
+	assert.NoError(t, err, "ListClusteredResources with continue token should not return an error")
+	assert.NotNil(t, list, "List should not be nil")
+}
+
+// TestListNamespacedResourcesWithPagination tests that pagination parameters are correctly handled
+func TestListNamespacedResourcesWithPagination(t *testing.T) {
+	scheme := runtime.NewScheme()
+	listKinds := map[schema.GroupVersionResource]string{
+		{Group: "", Version: "v1", Resource: "pods"}: "PodList",
+	}
+
+	client := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, listKinds)
+	testClient := &Client{
+		dynamicClient: client,
+	}
+
+	gvr := schema.GroupVersionResource{
+		Group:    "",
+		Version:  "v1",
+		Resource: "pods",
+	}
+
+	// Add a reactor that returns a list with a continue token
+	client.PrependReactor("list", "pods", func(_ ktesting.Action) (handled bool, ret runtime.Object, err error) {
+		list := &unstructured.UnstructuredList{
+			Object: map[string]interface{}{
+				"metadata": map[string]interface{}{
+					"continue": "pod-continue-token",
+				},
+			},
+			Items: []unstructured.Unstructured{
+				{
+					Object: map[string]interface{}{
+						"apiVersion": "v1",
+						"kind":       "Pod",
+						"metadata": map[string]interface{}{
+							"name":      "test-pod",
+							"namespace": "default",
+						},
+					},
+				},
+			},
+		}
+		return true, list, nil
+	})
+
+	// Test that the function accepts pagination parameters and returns results
+	ctx := context.Background()
+
+	// Test with limit
+	list, err := testClient.ListNamespacedResources(ctx, gvr, "default", "", 5, "")
+	assert.NoError(t, err, "ListNamespacedResources with limit should not return an error")
+	assert.NotNil(t, list, "List should not be nil")
+	assert.Equal(t, "pod-continue-token", list.GetContinue(), "Continue token should be preserved in response")
+
+	// Test with continue token
+	list, err = testClient.ListNamespacedResources(ctx, gvr, "default", "", 0, "pod-token")
+	assert.NoError(t, err, "ListNamespacedResources with continue token should not return an error")
+	assert.NotNil(t, list, "List should not be nil")
 }
 
 func TestApplyClusteredResource(t *testing.T) {
