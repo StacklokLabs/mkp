@@ -200,16 +200,8 @@ Parameters:
 - `version` (required): API version (e.g., v1, v1beta1)
 - `resource` (required): Resource name (e.g., deployments, services)
 - `namespace`: Namespace (required for namespaced resources)
-- `label_selector`: Kubernetes label selector for filtering resources (optional)
-- `include_annotations`: Whether to include annotations in the output (default: true)
-- `exclude_annotation_keys`: List of annotation keys to exclude from output (supports wildcards with *)
-- `include_annotation_keys`: List of annotation keys to include in output (if specified, only these are included)
 
-##### Annotation Filtering
-
-The `list_resources` tool provides powerful annotation filtering capabilities to control metadata output size and prevent truncation issues with large annotations (such as GPU node annotations).
-
-**Basic Usage:**
+Example:
 
 ```json
 {
@@ -223,64 +215,6 @@ The `list_resources` tool provides powerful annotation filtering capabilities to
   }
 }
 ```
-
-**Exclude specific annotations (useful for GPU nodes):**
-
-```json
-{
-  "name": "list_resources",
-  "arguments": {
-    "resource_type": "clustered",
-    "group": "",
-    "version": "v1",
-    "resource": "nodes",
-    "exclude_annotation_keys": [
-      "nvidia.com/*",
-      "kubectl.kubernetes.io/last-applied-configuration"
-    ]
-  }
-}
-```
-
-**Include only specific annotations:**
-
-```json
-{
-  "name": "list_resources",
-  "arguments": {
-    "resource_type": "namespaced",
-    "group": "",
-    "version": "v1",
-    "resource": "pods",
-    "namespace": "default",
-    "include_annotation_keys": ["app", "version", "prometheus.io/scrape"]
-  }
-}
-```
-
-**Disable annotations completely for maximum performance:**
-
-```json
-{
-  "name": "list_resources",
-  "arguments": {
-    "resource_type": "namespaced",
-    "group": "",
-    "version": "v1",
-    "resource": "pods",
-    "namespace": "default",
-    "include_annotations": false
-  }
-}
-```
-
-**Annotation Filtering Rules:**
-
-- By default, `kubectl.kubernetes.io/last-applied-configuration` is excluded to prevent large configuration data
-- `exclude_annotation_keys` supports wildcard patterns using `*` (e.g., `nvidia.com/*` excludes all NVIDIA annotations)
-- When `include_annotation_keys` is specified, it takes precedence and only those annotations are included
-- Setting `include_annotations: false` completely removes all annotations from the output
-- Wildcard patterns only support `*` at the end of the key (e.g., `nvidia.com/*`)
 
 #### apply_resource
 
@@ -433,28 +367,6 @@ The resource URIs follow these formats:
   `k8s://namespaced/{namespace}/{group}/{version}/{resource}/{name}`
 
 ### Configuration
-
-#### Transport Protocol
-
-MKP supports two transport protocols for the MCP server:
-
-- **SSE (Server-Sent Events)**: The default transport protocol, suitable for most use cases
-- **Streamable HTTP**: A streaming HTTP transport that supports both direct HTTP responses and SSE streams, useful for environments like ToolHive that require HTTP-based communication
-
-You can configure the transport protocol using either a CLI flag or an environment variable:
-
-```bash
-# Using CLI flag
-./build/mkp-server --transport=streamable-http
-
-# Using environment variable
-MCP_TRANSPORT=streamable-http ./build/mkp-server
-
-# Default (SSE)
-./build/mkp-server
-```
-
-The `MCP_TRANSPORT` environment variable is automatically set by ToolHive when running MKP in that environment.
 
 #### Controlling Resource Discovery
 
