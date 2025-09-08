@@ -31,6 +31,10 @@ func NewListResourcesTool() mcp.Tool {
 			mcp.Description("List of annotation keys to exclude from output (supports wildcards with *)")),
 		mcp.WithArray("include_annotation_keys",
 			mcp.Description("List of annotation keys to include in output (if specified, only these are included)")),
+		mcp.WithNumber("limit",
+			mcp.Description("Maximum number of resources to return (0 means no limit, default: 0)")),
+		mcp.WithString("continue",
+			mcp.Description("Continue token for pagination (use the value from previous response's ListMeta.Continue)")),
 		mcp.WithToolAnnotation(mcp.ToolAnnotation{
 			Title:        "List Kubernetes resources",
 			ReadOnlyHint: BoolPtr(true),
