@@ -458,23 +458,20 @@ The resource URIs follow these formats:
 
 MKP supports two transport protocols for the MCP server:
 
-- **SSE (Server-Sent Events)**: The default transport protocol, suitable for
-  most use cases
-- **Streamable HTTP**: A streaming HTTP transport that supports both direct HTTP
-  responses and SSE streams, useful for environments like ToolHive that require
-  HTTP-based communication
+- **Streamable HTTP**: The default transport protocol, suitable for most use cases
+- **SSE (Server-Sent Events)**: Legacy transport protocol, primarily for compatibility with older clients
 
 You can configure the transport protocol using either a CLI flag or an
 environment variable:
 
 ```bash
 # Using CLI flag
-./build/mkp-server --transport=streamable-http
+./build/mkp-server --transport=sse
 
 # Using environment variable
-MCP_TRANSPORT=streamable-http ./build/mkp-server
+MCP_TRANSPORT=sse ./build/mkp-server
 
-# Default (SSE)
+# Default (Streamable HTTP)
 ./build/mkp-server
 ```
 

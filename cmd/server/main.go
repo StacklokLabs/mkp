@@ -194,7 +194,7 @@ func getDefaultAddress() string {
 // If the environment variable is not set, returns "sse".
 // Valid values are "sse" and "streamable-http".
 func getDefaultTransport() string {
-	defaultTransport := transportSSE
+	defaultTransport := transportStreamableHTTP
 
 	transportEnv := os.Getenv("MCP_TRANSPORT")
 	if transportEnv == "" {
