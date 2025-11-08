@@ -110,6 +110,17 @@ To run the server on a specific port:
 MCP_PORT=9091 task run
 ```
 
+## Running with ToolHive
+
+MKP can be run as a Model Context Protocol (MCP) server using
+[ToolHive](https://github.com/stacklok/toolhive), which simplifies the
+deployment and management of MCP servers.
+
+See the
+[ToolHive documentation](https://docs.stacklok.com/toolhive/guides-mcp/k8s) for
+detailed instructions on how to set up MKP with the ToolHive UI, CLI, or
+Kubernetes operator.
+
 ### MCP Tools
 
 The MKP server provides the following MCP tools:
@@ -200,13 +211,18 @@ Parameters:
 - `resource` (required): Resource name (e.g., deployments, services)
 - `namespace`: Namespace (required for namespaced resources)
 - `label_selector`: Kubernetes label selector for filtering resources (optional)
-- `include_annotations`: Whether to include annotations in the output (default: true)
-- `exclude_annotation_keys`: List of annotation keys to exclude from output (supports wildcards with *)
-- `include_annotation_keys`: List of annotation keys to include in output (if specified, only these are included)
+- `include_annotations`: Whether to include annotations in the output (default:
+  true)
+- `exclude_annotation_keys`: List of annotation keys to exclude from output
+  (supports wildcards with \*)
+- `include_annotation_keys`: List of annotation keys to include in output (if
+  specified, only these are included)
 
 ##### Annotation Filtering
 
-The `list_resources` tool provides powerful annotation filtering capabilities to control metadata output size and prevent truncation issues with large annotations (such as GPU node annotations).
+The `list_resources` tool provides powerful annotation filtering capabilities to
+control metadata output size and prevent truncation issues with large
+annotations (such as GPU node annotations).
 
 **Basic Usage:**
 
@@ -275,11 +291,16 @@ The `list_resources` tool provides powerful annotation filtering capabilities to
 
 **Annotation Filtering Rules:**
 
-- By default, `kubectl.kubernetes.io/last-applied-configuration` is excluded to prevent large configuration data
-- `exclude_annotation_keys` supports wildcard patterns using `*` (e.g., `nvidia.com/*` excludes all NVIDIA annotations)
-- When `include_annotation_keys` is specified, it takes precedence and only those annotations are included
-- Setting `include_annotations: false` completely removes all annotations from the output
-- Wildcard patterns only support `*` at the end of the key (e.g., `nvidia.com/*`)
+- By default, `kubectl.kubernetes.io/last-applied-configuration` is excluded to
+  prevent large configuration data
+- `exclude_annotation_keys` supports wildcard patterns using `*` (e.g.,
+  `nvidia.com/*` excludes all NVIDIA annotations)
+- When `include_annotation_keys` is specified, it takes precedence and only
+  those annotations are included
+- Setting `include_annotations: false` completely removes all annotations from
+  the output
+- Wildcard patterns only support `*` at the end of the key (e.g.,
+  `nvidia.com/*`)
 
 #### apply_resource
 
@@ -437,10 +458,14 @@ The resource URIs follow these formats:
 
 MKP supports two transport protocols for the MCP server:
 
-- **SSE (Server-Sent Events)**: The default transport protocol, suitable for most use cases
-- **Streamable HTTP**: A streaming HTTP transport that supports both direct HTTP responses and SSE streams, useful for environments like ToolHive that require HTTP-based communication
+- **SSE (Server-Sent Events)**: The default transport protocol, suitable for
+  most use cases
+- **Streamable HTTP**: A streaming HTTP transport that supports both direct HTTP
+  responses and SSE streams, useful for environments like ToolHive that require
+  HTTP-based communication
 
-You can configure the transport protocol using either a CLI flag or an environment variable:
+You can configure the transport protocol using either a CLI flag or an
+environment variable:
 
 ```bash
 # Using CLI flag
@@ -453,7 +478,8 @@ MCP_TRANSPORT=streamable-http ./build/mkp-server
 ./build/mkp-server
 ```
 
-The `MCP_TRANSPORT` environment variable is automatically set by ToolHive when running MKP in that environment.
+The `MCP_TRANSPORT` environment variable is automatically set by ToolHive when
+running MKP in that environment.
 
 #### Controlling Resource Discovery
 
@@ -537,97 +563,6 @@ task lint
 
 ```bash
 task deps
-```
-
-## Running as an MCP Server with ToolHive
-
-MKP can be run as a Model Context Protocol (MCP) server using
-[ToolHive](https://github.com/stacklok/toolhive), which simplifies the
-deployment and management of MCP servers.
-
-### Prerequisites
-
-1. Install ToolHive by following the
-   [installation instructions](https://docs.stacklok.com/toolhive/guides-cli/install).
-2. Ensure you have Docker or Podman installed on your system.
-3. Configure your Kubernetes credentials (kubeconfig) for the cluster you want
-   to interact with.
-
-### Running MKP with ToolHive (Recommended)
-
-The easiest way to run MKP is using the packaged version available in ToolHive's
-registry:
-
-```bash
-# Register a supported client so ToolHive can auto-configure your environment
-thv client setup
-
-# Run the MKP server (packaged as 'k8s' in ToolHive)
-# Mount your kubeconfig so the server can access your Kubernetes cluster
-thv run --volume $HOME/.kube:/home/nonroot/.kube:ro k8s
-
-# List running servers
-thv list
-
-# Get detailed information about the server
-thv registry info k8s
-```
-
-This will mount your Kubernetes credentials and make the server available to
-your MCP-compatible clients.
-
-### Advanced Usage with Custom Configuration
-
-For advanced users who need custom configuration, you can also run MKP using the
-container image directly:
-
-```bash
-# Run the MKP server using the published container image
-thv run --name mkp --transport sse --target-port 8080 --volume $HOME/.kube:/home/nonroot/.kube:ro ghcr.io/stackloklabs/mkp/server:latest
-```
-
-This command:
-
-- Names the server instance "mkp"
-- Uses the SSE transport protocol
-- Mounts your local kubeconfig into the container (read-only)
-- Uses the latest published MKP image from GitHub Container Registry
-
-To use a specific version instead of the latest:
-
-```bash
-thv run --name mkp --transport sse --target-port 8080 --volume $HOME/.kube:/home/nonroot/.kube:ro ghcr.io/stackloklabs/mkp/server:v0.0.1
-```
-
-### Managing the MKP Server
-
-To verify that the MKP server is running:
-
-```bash
-thv list
-```
-
-This will show all running MCP servers managed by ToolHive, including the MKP
-server.
-
-To stop the MKP server:
-
-```bash
-# For packaged version
-thv stop k8s
-
-# For custom named version
-thv stop mkp
-```
-
-To remove the server instance completely:
-
-```bash
-# For packaged version
-thv rm k8s
-
-# For custom named version
-thv rm mkp
 ```
 
 ## Contributing
