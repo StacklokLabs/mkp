@@ -60,7 +60,7 @@ func WithTimeWindow(window time.Duration) RateLimiterOption {
 func NewRateLimiter(opts ...RateLimiterOption) *RateLimiter {
 	rl := &RateLimiter{
 		limits:        make(map[string]int),
-		defaultLimit:  defaultLimit,
+		defaultLimit:  defaultDefaultLimit,
 		requestCounts: make(map[string]map[string]*windowCounter),
 	}
 

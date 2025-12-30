@@ -536,6 +536,17 @@ via the command line flag:
 ./build/mkp-server --enable-rate-limiting=false
 ```
 
+Rate limits can be customized via environment variables:
+
+- `MKP_RATE_LIMIT_DEFAULT`: Default rate limit (default: 60)
+- `MKP_RATE_LIMIT_READ`: Read operations rate limit (default: 120)
+- `MKP_RATE_LIMIT_WRITE`: Write operations rate limit (default: 30)
+
+```bash
+# Run with custom rate limits
+MKP_RATE_LIMIT_READ=200 MKP_RATE_LIMIT_WRITE=50 ./build/mkp-server
+```
+
 ## Development
 
 ### Running tests
