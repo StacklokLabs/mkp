@@ -536,6 +536,30 @@ via the command line flag:
 ./build/mkp-server --enable-rate-limiting=false
 ```
 
+### OpenTelemetry
+
+MKP supports OpenTelemetry for distributed tracing and metrics. When enabled,
+tool calls are instrumented with spans and metrics to help monitor and debug
+your MCP server.
+
+Configuration is done via environment variables:
+
+- `MKP_OTEL_ENABLED`: Enable OpenTelemetry (default: false)
+- `MKP_OTEL_SERVICE_NAME`: Service name for tracing (default: mkp)
+- `MKP_OTEL_SERVICE_VERSION`: Service version (default: 0.1.0)
+- `OTEL_EXPORTER_OTLP_ENDPOINT`: OTLP endpoint (e.g., localhost:4317)
+
+```bash
+# Run with OpenTelemetry enabled, sending traces to a local collector
+MKP_OTEL_ENABLED=true OTEL_EXPORTER_OTLP_ENDPOINT=localhost:4317 ./build/mkp-server
+```
+
+If no OTLP endpoint is configured, traces are printed to stdout for debugging.
+
+Metrics exported:
+- `mkp.tool.requests`: Counter of tool requests (with tool name and error status)
+- `mkp.tool.duration`: Histogram of tool request duration in milliseconds
+
 ## Development
 
 ### Running tests

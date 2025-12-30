@@ -8,6 +8,7 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 
 	"github.com/StacklokLabs/mkp/pkg/k8s"
+	"github.com/StacklokLabs/mkp/pkg/otel"
 	"github.com/StacklokLabs/mkp/pkg/ratelimit"
 )
 
@@ -27,20 +28,27 @@ type Config struct {
 	// EnableRateLimiting determines whether to enable rate limiting for tool calls
 	// When true, a default rate limiter will be used to prevent excessive API calls
 	EnableRateLimiting bool
+
+	// EnableOtel determines whether to enable OpenTelemetry tracing and metrics
+	// When true, tool calls will be instrumented with OpenTelemetry
+	EnableOtel bool
 }
 
 // DefaultConfig returns a Config with default values
 func DefaultConfig() *Config {
+	otelConfig := otel.DefaultConfig()
 	return &Config{
-		ServeResources:     true,  // Default to serving resources for backward compatibility
-		ReadWrite:          false, // Default to read-only mode
-		EnableRateLimiting: true,  // Default to enabling rate limiting
+		ServeResources:     true,           // Default to serving resources for backward compatibility
+		ReadWrite:          false,          // Default to read-only mode
+		EnableRateLimiting: true,           // Default to enabling rate limiting
+		EnableOtel:         otelConfig.Enabled, // Default based on MKP_OTEL_ENABLED env var
 	}
 }
 
 // serverResources holds resources that need to be cleaned up when the server is stopped
 type serverResources struct {
-	rateLimiter *ratelimit.RateLimiter
+	rateLimiter  *ratelimit.RateLimiter
+	otelProvider *otel.Provider
 }
 
 // Global variable to hold server resources
@@ -52,6 +60,10 @@ func CreateServer(k8sClient *k8s.Client, config *Config) *server.MCPServer {
 	if config == nil {
 		config = DefaultConfig()
 	}
+
+	// Initialize server resources
+	resources = &serverResources{}
+
 	// Create MCP implementation
 	impl := NewImplementation(k8sClient)
 
@@ -63,20 +75,25 @@ func CreateServer(k8sClient *k8s.Client, config *Config) *server.MCPServer {
 		server.WithRecovery(),
 	}
 
+	// Add OpenTelemetry middleware if enabled
+	if config.EnableOtel {
+		log.Println("OpenTelemetry enabled, initializing provider")
+		otelConfig := otel.DefaultConfig()
+		provider, err := otel.NewProvider(context.Background(), otelConfig)
+		if err != nil {
+			log.Printf("Failed to initialize OpenTelemetry: %v", err)
+		} else {
+			resources.otelProvider = provider
+			options = append(options, server.WithToolHandlerMiddleware(otel.Middleware()))
+		}
+	}
+
 	// Add rate limiting middleware if enabled
 	if config.EnableRateLimiting {
 		log.Println("Server rate limiting enabled, initializing rate limiter")
-		// Create and store the rate limiter for cleanup
 		limiter := ratelimit.GetDefaultRateLimiter()
-
-		// Store the limiter for cleanup when the server is stopped
-		resources = &serverResources{
-			rateLimiter: limiter,
-		}
-
-		// Add the middleware to the server options
-		middleware := limiter.Middleware()
-		options = append(options, server.WithToolHandlerMiddleware(middleware))
+		resources.rateLimiter = limiter
+		options = append(options, server.WithToolHandlerMiddleware(limiter.Middleware()))
 	}
 
 	// Create MCP server with all options
@@ -132,11 +149,19 @@ func CreateServer(k8sClient *k8s.Client, config *Config) *server.MCPServer {
 
 // StopServer stops the MCP server and cleans up resources
 func StopServer() {
-	// Clean up resources
-	if resources != nil {
-		// Stop the rate limiter if it exists
-		if resources.rateLimiter != nil {
-			resources.rateLimiter.Stop()
+	if resources == nil {
+		return
+	}
+
+	// Stop the rate limiter if it exists
+	if resources.rateLimiter != nil {
+		resources.rateLimiter.Stop()
+	}
+
+	// Shutdown OpenTelemetry provider if it exists
+	if resources.otelProvider != nil {
+		if err := resources.otelProvider.Shutdown(context.Background()); err != nil {
+			log.Printf("Error shutting down OpenTelemetry: %v", err)
 		}
 	}
 }
