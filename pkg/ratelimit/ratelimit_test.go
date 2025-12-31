@@ -2,6 +2,7 @@ package ratelimit
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -14,7 +15,7 @@ func TestRateLimiterCreation(t *testing.T) {
 	// Test with default options
 	limiter := NewRateLimiter()
 	assert.NotNil(t, limiter)
-	assert.Equal(t, defaultLimit, limiter.defaultLimit)
+	assert.Equal(t, defaultDefaultLimit, limiter.defaultLimit)
 
 	// Test with custom options
 	customLimiter := NewRateLimiter(
@@ -257,4 +258,72 @@ func TestToolSpecificLimits(t *testing.T) {
 	result, _ = wrappedHandler(ctx, highLimitRequest)
 	assert.True(t, result.IsError)
 	assert.Contains(t, result.Content[0].(mcp.TextContent).Text, "Rate limit exceeded")
+}
+
+func TestNewDefaultConfig(t *testing.T) {
+	// Test default values
+	config := NewDefaultConfig()
+	assert.Equal(t, defaultDefaultLimit, config.DefaultLimit)
+	assert.Equal(t, defaultReadLimit, config.ReadLimit)
+	assert.Equal(t, defaultWriteLimit, config.WriteLimit)
+}
+
+func TestConfigFromEnv(t *testing.T) {
+	// Save original env values and restore after test
+	origDefault := os.Getenv("MKP_RATE_LIMIT_DEFAULT")
+	origRead := os.Getenv("MKP_RATE_LIMIT_READ")
+	origWrite := os.Getenv("MKP_RATE_LIMIT_WRITE")
+	defer func() {
+		os.Setenv("MKP_RATE_LIMIT_DEFAULT", origDefault)
+		os.Setenv("MKP_RATE_LIMIT_READ", origRead)
+		os.Setenv("MKP_RATE_LIMIT_WRITE", origWrite)
+	}()
+
+	// Set custom env values
+	os.Setenv("MKP_RATE_LIMIT_DEFAULT", "100")
+	os.Setenv("MKP_RATE_LIMIT_READ", "200")
+	os.Setenv("MKP_RATE_LIMIT_WRITE", "50")
+
+	config := NewDefaultConfig()
+	assert.Equal(t, 100, config.DefaultLimit)
+	assert.Equal(t, 200, config.ReadLimit)
+	assert.Equal(t, 50, config.WriteLimit)
+}
+
+func TestConfigFromEnvInvalidValues(t *testing.T) {
+	// Save original env values and restore after test
+	origDefault := os.Getenv("MKP_RATE_LIMIT_DEFAULT")
+	defer os.Setenv("MKP_RATE_LIMIT_DEFAULT", origDefault)
+
+	// Test with invalid value (non-numeric)
+	os.Setenv("MKP_RATE_LIMIT_DEFAULT", "invalid")
+	config := NewDefaultConfig()
+	assert.Equal(t, defaultDefaultLimit, config.DefaultLimit)
+
+	// Test with invalid value (zero)
+	os.Setenv("MKP_RATE_LIMIT_DEFAULT", "0")
+	config = NewDefaultConfig()
+	assert.Equal(t, defaultDefaultLimit, config.DefaultLimit)
+
+	// Test with invalid value (negative)
+	os.Setenv("MKP_RATE_LIMIT_DEFAULT", "-10")
+	config = NewDefaultConfig()
+	assert.Equal(t, defaultDefaultLimit, config.DefaultLimit)
+}
+
+func TestGetRateLimiterWithConfig(t *testing.T) {
+	// Test with nil config (should use defaults)
+	limiter := GetRateLimiterWithConfig(nil)
+	assert.NotNil(t, limiter)
+	assert.Equal(t, defaultDefaultLimit, limiter.defaultLimit)
+
+	// Test with custom config
+	config := &Config{
+		DefaultLimit: 100,
+		ReadLimit:    200,
+		WriteLimit:   50,
+	}
+	limiter = GetRateLimiterWithConfig(config)
+	assert.NotNil(t, limiter)
+	assert.Equal(t, 100, limiter.defaultLimit)
 }
