@@ -1,0 +1,149 @@
+# MKP - Model Kontext Protocol Server for Kubernetes
+# This manifest deploys MKP as a standalone deployment in its own namespace.
+#
+# RBAC Configuration:
+# By default, this manifest grants cluster-wide read access to all resources.
+# For write operations (--read-write=true), you need to add additional verbs
+# to the ClusterRole or create a more permissive role.
+#
+# Usage:
+#   kubectl apply -f mkp.yaml
+#
+# Configuration:
+#   - Modify the Deployment args to change server behavior
+#   - Adjust ClusterRole rules to limit or expand access
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mkp
+  labels:
+    app.kubernetes.io/name: mkp
+    app.kubernetes.io/component: mcp-server
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: mkp
+  namespace: mkp
+  labels:
+    app.kubernetes.io/name: mkp
+    app.kubernetes.io/component: mcp-server
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: mkp
+  labels:
+    app.kubernetes.io/name: mkp
+    app.kubernetes.io/component: mcp-server
+rules:
+  # Read access to all resources (including CRDs)
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["get", "list", "watch"]
+  # Uncomment the following for write operations (when using --read-write=true)
+  # - apiGroups: ["*"]
+  #   resources: ["*"]
+  #   verbs: ["create", "update", "patch", "delete"]
+  # Pod exec permissions (when using --read-write=true)
+  # - apiGroups: [""]
+  #   resources: ["pods/exec"]
+  #   verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: mkp
+  labels:
+    app.kubernetes.io/name: mkp
+    app.kubernetes.io/component: mcp-server
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: mkp
+subjects:
+  - kind: ServiceAccount
+    name: mkp
+    namespace: mkp
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mkp
+  namespace: mkp
+  labels:
+    app.kubernetes.io/name: mkp
+    app.kubernetes.io/component: mcp-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mkp
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mkp
+        app.kubernetes.io/component: mcp-server
+    spec:
+      serviceAccountName: mkp
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: mkp
+          image: ghcr.io/stackloklabs/mkp/server:latest
+          args:
+            - "--addr=:8080"
+            # Uncomment to serve cluster resources as MCP resources
+            # - "--serve-resources=true"
+            # Uncomment to enable write operations
+            # - "--read-write=true"
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mkp
+  namespace: mkp
+  labels:
+    app.kubernetes.io/name: mkp
+    app.kubernetes.io/component: mcp-server
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: mkp
