@@ -25,13 +25,13 @@ tasks:
   lint:
     desc: Run linting tools
     cmds:
-      - golangci-lint run ./...
+      - golangci-lint run --allow-parallel-runners ./...
       - go vet ./...
 
   lint-fix:
     desc: Run linting tools, and apply fixes.
     cmds:
-      - golangci-lint run --fix ./...
+      - golangci-lint run --allow-parallel-runners --fix ./...
 
   test:
     desc: Run tests
@@ -47,7 +47,7 @@ tasks:
     desc: Format the code
     cmds:
       - go fmt ./...
-      - golangci-lint run --fix
+      - golangci-lint run --allow-parallel-runners --fix
 
   deps:
     desc: Update dependencies
