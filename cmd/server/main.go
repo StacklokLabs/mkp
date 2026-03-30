@@ -206,8 +206,9 @@ func getDefaultTransport() string {
 
 	// Validate the transport value
 	if transport != transportSSE && transport != transportStreamableHTTP {
-		log.Printf("Invalid MCP_TRANSPORT: %s, using default: %s",
-			transportEnv, defaultTransport)
+		//nolint:gosec // G706 -- %q escapes newlines, preventing log injection
+		log.Printf("Invalid MCP_TRANSPORT: %q, using default: %s",
+			transport, defaultTransport)
 		return defaultTransport
 	}
 
