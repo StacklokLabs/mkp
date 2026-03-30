@@ -8,6 +8,10 @@ MKP is a Model Context Protocol (MCP) server for Kubernetes that allows
 LLM-powered applications to interact with Kubernetes clusters. It provides tools
 for listing and applying Kubernetes resources through the MCP protocol.
 
+## Hosted deployment
+
+A hosted deployment is available on [Fronteir AI](https://fronteir.ai/mcp/stackloklabs-mkp).
+
 ## Features
 
 - List resources supported by the Kubernetes API server
