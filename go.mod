@@ -3,7 +3,7 @@ module github.com/StacklokLabs/mkp
 go 1.24.2
 
 require (
-	github.com/mark3labs/mcp-go v0.43.2
+	github.com/mark3labs/mcp-go v0.46.0
 	github.com/stretchr/testify v1.11.1
 	k8s.io/api v0.34.3
 	k8s.io/apimachinery v0.34.3
@@ -22,6 +22,7 @@ require (
 	github.com/go-openapi/swag v0.23.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/google/gnostic-models v0.7.0 // indirect
+	github.com/google/jsonschema-go v0.4.2 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674 // indirect
 	github.com/invopop/jsonschema v0.13.0 // indirect
