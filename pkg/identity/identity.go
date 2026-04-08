@@ -70,7 +70,9 @@ func HTTPContextFunc(cfg *Config) func(ctx context.Context, r *http.Request) con
 	return func(ctx context.Context, r *http.Request) context.Context {
 		id, err := ExtractFromRequest(r, cfg)
 		if err != nil {
-			log.Printf("WARN: identity extraction failed: %v", err)
+			// Log without the error details to avoid leaking sensitive
+			// data from the Authorization header (CodeQL: clear-text logging).
+			log.Println("WARN: identity extraction from Authorization header failed")
 			return ctx
 		}
 		if id == nil {
