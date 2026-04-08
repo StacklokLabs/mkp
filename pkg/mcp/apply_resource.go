@@ -47,6 +47,12 @@ func (m *Implementation) HandleApplyResource(ctx context.Context, request mcp.Ca
 		Resource: resource,
 	}
 
+	// Get the appropriate client (may be impersonated)
+	client, clientErr := m.clientForContext(ctx)
+	if clientErr != nil {
+		return mcp.NewToolResultErrorFromErr("Failed to get Kubernetes client", clientErr), nil
+	}
+
 	// Convert manifest to unstructured
 	obj := &unstructured.Unstructured{Object: manifestMap}
 
@@ -55,9 +61,9 @@ func (m *Implementation) HandleApplyResource(ctx context.Context, request mcp.Ca
 	var err error
 	switch resourceType {
 	case types.ResourceTypeClustered:
-		result, err = m.k8sClient.ApplyClusteredResource(ctx, gvr, obj)
+		result, err = client.ApplyClusteredResource(ctx, gvr, obj)
 	case types.ResourceTypeNamespaced:
-		result, err = m.k8sClient.ApplyNamespacedResource(ctx, gvr, namespace, obj)
+		result, err = client.ApplyNamespacedResource(ctx, gvr, namespace, obj)
 	default:
 		return mcp.NewToolResultError(fmt.Sprintf("Invalid resource_type: %s", resourceType)), nil
 	}

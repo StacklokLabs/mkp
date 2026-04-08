@@ -44,13 +44,17 @@ func TestCreateSSEServer(t *testing.T) {
 	// Set the dynamic client
 	mockClient.SetDynamicClient(fakeDynamicClient)
 
-	// Create an MCP server with default config
-	mcpServer := CreateServer(mockClient, nil)
+	// Create an MCP server with ServeResources disabled to avoid
+	// background goroutine that can race with test completion
+	mcpServer := CreateServer(mockClient, &Config{
+		ServeResources:     false,
+		EnableRateLimiting: true,
+	})
 
 	assert.NotNil(t, mcpServer, "MCP server should not be nil")
 
-	// Create an SSE server
-	sseServer := CreateSSEServer(mcpServer)
+	// Create an SSE server (nil config = no impersonation)
+	sseServer := CreateSSEServer(mcpServer, nil)
 
 	// Verify the server is not nil
 	assert.NotNil(t, sseServer, "SSE server should not be nil")

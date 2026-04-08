@@ -26,8 +26,14 @@ func (m *Implementation) HandlePostResource(ctx context.Context, request mcp.Cal
 		Resource: params.resource,
 	}
 
+	// Get the appropriate client (may be impersonated)
+	client, clientErr := m.clientForContext(ctx)
+	if clientErr != nil {
+		return mcp.NewToolResultErrorFromErr("Failed to get Kubernetes client", clientErr), nil
+	}
+
 	// Post to resource
-	result, err := m.k8sClient.PostResource(
+	result, err := client.PostResource(
 		ctx, gvr, params.namespace, params.name,
 		params.subresource, params.bodyMap, params.parameters,
 	)

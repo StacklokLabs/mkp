@@ -38,6 +38,16 @@ func main() {
 	transport := flag.String("transport", getDefaultTransport(),
 		"Transport protocol to use: 'sse' or 'streamable-http'. Can also be set via MCP_TRANSPORT environment variable")
 
+	// Impersonation flags
+	enableImpersonation := flag.Bool("enable-impersonation", false,
+		"Enable Kubernetes API impersonation based on authenticated user identity from the Authorization header JWT. "+
+			"When enabled, the server's ServiceAccount must have RBAC permissions to impersonate users and groups. "+
+			"Requires a trusted proxy (e.g., ToolHive) that validates the JWT before forwarding to MKP")
+	impersonationUserClaim := flag.String("impersonation-user-claim", "email",
+		"JWT claim to use for the Kubernetes Impersonate-User header")
+	impersonationGroupsClaim := flag.String("impersonation-groups-claim", "groups",
+		"JWT claim to use for the Kubernetes Impersonate-Group headers")
+
 	flag.Parse()
 
 	// Create a context that can be cancelled
@@ -75,9 +85,12 @@ func main() {
 
 	// Create MCP server config
 	config := &mcp.Config{
-		ServeResources:     *serveResources,
-		ReadWrite:          *readWrite,
-		EnableRateLimiting: *enableRateLimiting,
+		ServeResources:           *serveResources,
+		ReadWrite:                *readWrite,
+		EnableRateLimiting:       *enableRateLimiting,
+		EnableImpersonation:      *enableImpersonation,
+		ImpersonationUserClaim:   *impersonationUserClaim,
+		ImpersonationGroupsClaim: *impersonationGroupsClaim,
 	}
 
 	// Create MCP server using the helper function
@@ -92,10 +105,10 @@ func main() {
 	switch strings.ToLower(*transport) {
 	case transportStreamableHTTP:
 		log.Println("Using streamable-http transport")
-		transportServer = mcp.CreateStreamableHTTPServer(mcpServer)
+		transportServer = mcp.CreateStreamableHTTPServer(mcpServer, config)
 	case transportSSE:
 		log.Println("Using SSE transport")
-		transportServer = mcp.CreateSSEServer(mcpServer)
+		transportServer = mcp.CreateSSEServer(mcpServer, config)
 	default:
 		log.Fatalf("Invalid transport: %s. Must be 'sse' or 'streamable-http'", *transport)
 	}
@@ -183,6 +196,7 @@ func getDefaultAddress() string {
 
 	// Check if port is within valid range
 	if port < 1 || port > 65535 {
+		//nolint:gosec // G706 -- port is a validated int from strconv.Atoi, no injection risk
 		log.Printf("Port %d out of valid range (1-65535), using default port", port)
 		return defaultPort
 	}

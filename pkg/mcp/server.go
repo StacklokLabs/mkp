@@ -7,6 +7,7 @@ import (
 
 	"github.com/mark3labs/mcp-go/server"
 
+	"github.com/StacklokLabs/mkp/pkg/identity"
 	"github.com/StacklokLabs/mkp/pkg/k8s"
 	"github.com/StacklokLabs/mkp/pkg/ratelimit"
 )
@@ -27,6 +28,20 @@ type Config struct {
 	// EnableRateLimiting determines whether to enable rate limiting for tool calls
 	// When true, a default rate limiter will be used to prevent excessive API calls
 	EnableRateLimiting bool
+
+	// EnableImpersonation determines whether to enable Kubernetes API impersonation
+	// based on authenticated user identity from the Authorization header JWT.
+	// When true, each K8s API call will impersonate the authenticated user.
+	// When false, all requests use the server's own identity (backward compatible).
+	EnableImpersonation bool
+
+	// ImpersonationUserClaim is the JWT claim to use for the Impersonate-User header.
+	// Defaults to "email" if empty.
+	ImpersonationUserClaim string
+
+	// ImpersonationGroupsClaim is the JWT claim to use for the Impersonate-Group headers.
+	// Defaults to "groups" if empty.
+	ImpersonationGroupsClaim string
 }
 
 // DefaultConfig returns a Config with default values
@@ -52,8 +67,14 @@ func CreateServer(k8sClient *k8s.Client, config *Config) *server.MCPServer {
 	if config == nil {
 		config = DefaultConfig()
 	}
-	// Create MCP implementation
-	impl := NewImplementation(k8sClient)
+	// Create MCP implementation (with or without impersonation)
+	var impl *Implementation
+	if config.EnableImpersonation {
+		log.Println("Kubernetes impersonation enabled")
+		impl = NewImplementationWithImpersonation(k8sClient)
+	} else {
+		impl = NewImplementation(k8sClient)
+	}
 
 	options := []server.ServerOption{
 		server.WithResourceCapabilities(true, true),
@@ -141,12 +162,38 @@ func StopServer() {
 	}
 }
 
-// CreateSSEServer creates a new SSE server for the MCP server
-func CreateSSEServer(mcpServer *server.MCPServer) *server.SSEServer {
-	return server.NewSSEServer(mcpServer)
+// identityConfig returns the identity.Config for the given server config.
+func identityConfig(config *Config) *identity.Config {
+	cfg := identity.DefaultConfig()
+	if config.ImpersonationUserClaim != "" {
+		cfg.UserClaim = config.ImpersonationUserClaim
+	}
+	if config.ImpersonationGroupsClaim != "" {
+		cfg.GroupsClaim = config.ImpersonationGroupsClaim
+	}
+	return cfg
 }
 
-// CreateStreamableHTTPServer creates a new StreamableHTTP server for the MCP server
-func CreateStreamableHTTPServer(mcpServer *server.MCPServer) *server.StreamableHTTPServer {
-	return server.NewStreamableHTTPServer(mcpServer)
+// CreateSSEServer creates a new SSE server for the MCP server.
+// When impersonation is enabled, it registers an HTTP context function that
+// extracts identity from the Authorization header JWT.
+func CreateSSEServer(mcpServer *server.MCPServer, config *Config) *server.SSEServer {
+	var opts []server.SSEOption
+	if config != nil && config.EnableImpersonation {
+		idCfg := identityConfig(config)
+		opts = append(opts, server.WithSSEContextFunc(identity.HTTPContextFunc(idCfg)))
+	}
+	return server.NewSSEServer(mcpServer, opts...)
+}
+
+// CreateStreamableHTTPServer creates a new StreamableHTTP server for the MCP server.
+// When impersonation is enabled, it registers an HTTP context function that
+// extracts identity from the Authorization header JWT.
+func CreateStreamableHTTPServer(mcpServer *server.MCPServer, config *Config) *server.StreamableHTTPServer {
+	var opts []server.StreamableHTTPOption
+	if config != nil && config.EnableImpersonation {
+		idCfg := identityConfig(config)
+		opts = append(opts, server.WithHTTPContextFunc(identity.HTTPContextFunc(idCfg)))
+	}
+	return server.NewStreamableHTTPServer(mcpServer, opts...)
 }
