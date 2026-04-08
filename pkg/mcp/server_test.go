@@ -54,7 +54,8 @@ func TestCreateSSEServer(t *testing.T) {
 	assert.NotNil(t, mcpServer, "MCP server should not be nil")
 
 	// Create an SSE server (nil config = no impersonation)
-	sseServer := CreateSSEServer(mcpServer, nil)
+	sseServer, err := CreateSSEServer(mcpServer, nil)
+	assert.NoError(t, err, "CreateSSEServer should not return an error")
 
 	// Verify the server is not nil
 	assert.NotNil(t, sseServer, "SSE server should not be nil")

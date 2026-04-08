@@ -23,6 +23,7 @@ const (
 	transportStreamableHTTP = "streamable-http"
 )
 
+//nolint:gocyclo // Complexity is from flag parsing and error handling, not logic branching
 func main() {
 	// Parse command line flags
 	kubeconfig := flag.String("kubeconfig", "", "Path to kubeconfig file. If not provided, in-cluster config will be used")
@@ -47,6 +48,10 @@ func main() {
 		"JWT claim to use for the Kubernetes Impersonate-User header")
 	impersonationGroupsClaim := flag.String("impersonation-groups-claim", "groups",
 		"JWT claim to use for the Kubernetes Impersonate-Group headers")
+	impersonationJWKSURL := flag.String("impersonation-jwks-url", "",
+		"JWKS endpoint URL for JWT signature validation. When set, JWTs are validated "+
+			"against keys from this endpoint (signature + expiration). When empty, JWTs are "+
+			"parsed without validation (trusted proxy mode)")
 
 	flag.Parse()
 
@@ -91,6 +96,7 @@ func main() {
 		EnableImpersonation:      *enableImpersonation,
 		ImpersonationUserClaim:   *impersonationUserClaim,
 		ImpersonationGroupsClaim: *impersonationGroupsClaim,
+		ImpersonationJWKSURL:     *impersonationJWKSURL,
 	}
 
 	// Create MCP server using the helper function
@@ -105,12 +111,15 @@ func main() {
 	switch strings.ToLower(*transport) {
 	case transportStreamableHTTP:
 		log.Println("Using streamable-http transport")
-		transportServer = mcp.CreateStreamableHTTPServer(mcpServer, config)
+		transportServer, err = mcp.CreateStreamableHTTPServer(mcpServer, config)
 	case transportSSE:
 		log.Println("Using SSE transport")
-		transportServer = mcp.CreateSSEServer(mcpServer, config)
+		transportServer, err = mcp.CreateSSEServer(mcpServer, config)
 	default:
 		log.Fatalf("Invalid transport: %s. Must be 'sse' or 'streamable-http'", *transport)
+	}
+	if err != nil {
+		log.Fatalf("Failed to create transport server: %v", err)
 	}
 
 	// Channel to receive server errors

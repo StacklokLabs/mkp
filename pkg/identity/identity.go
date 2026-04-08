@@ -1,10 +1,17 @@
 // Package identity extracts authenticated user identity from HTTP requests
 // and threads it through context for Kubernetes impersonation.
 //
-// SECURITY NOTE: This package parses JWTs WITHOUT cryptographic signature
-// validation. It is designed to run behind a trusted proxy (e.g., ToolHive)
-// that has already validated the token. Do NOT use this in contexts where
-// the JWT has not been pre-validated by a trusted upstream component.
+// Two modes of operation are supported:
+//
+//   - Trusted proxy mode (default): JWTs are parsed WITHOUT cryptographic
+//     signature validation. Use this when MKP runs behind a proxy (e.g.,
+//     ToolHive) that has already validated the token.
+//
+//   - JWKS validation mode: When a JWKS URL is configured, JWTs are
+//     validated against the keys fetched from the OIDC provider's JWKS
+//     endpoint. This includes signature verification and expiration
+//     checking. Use this when MKP is exposed directly without a
+//     validating proxy.
 package identity
 
 import (
@@ -15,6 +22,8 @@ import (
 	"log"
 	"net/http"
 	"strings"
+
+	golangJWT "github.com/golang-jwt/jwt/v5"
 )
 
 // Identity represents an authenticated user's identity extracted from a JWT.
@@ -50,6 +59,11 @@ type Config struct {
 	// GroupsClaim is the JWT claim to use for impersonated groups.
 	// Defaults to "groups".
 	GroupsClaim string
+	// JWKSClient is an optional JWKS client for JWT signature validation.
+	// When set, JWTs are validated against the keys from the JWKS endpoint
+	// (signature + expiration). When nil, JWTs are parsed without validation
+	// (trusted proxy mode).
+	JWKSClient *JWKSClient
 }
 
 // DefaultConfig returns a Config with default claim names.
@@ -105,11 +119,19 @@ func ExtractFromRequest(r *http.Request, cfg *Config) (*Identity, error) {
 }
 
 // ExtractFromJWT extracts an Identity from a JWT token string.
-// The JWT is parsed without signature validation (trusted proxy assumption).
+// When cfg.JWKSClient is set, the JWT signature and expiration are validated.
+// Otherwise, the JWT is parsed without signature validation (trusted proxy mode).
 func ExtractFromJWT(token string, cfg *Config) (*Identity, error) {
-	claims, err := parseJWTPayload(token)
+	var claims map[string]interface{}
+	var err error
+
+	if cfg.JWKSClient != nil {
+		claims, err = parseAndValidateJWT(token, cfg.JWKSClient)
+	} else {
+		claims, err = parseJWTPayload(token)
+	}
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse JWT payload: %w", err)
+		return nil, fmt.Errorf("failed to parse JWT: %w", err)
 	}
 
 	// Extract user claim
@@ -164,6 +186,35 @@ func parseJWTPayload(token string) (map[string]interface{}, error) {
 	var claims map[string]interface{}
 	if err := json.Unmarshal(payload, &claims); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal JWT payload: %w", err)
+	}
+
+	return claims, nil
+}
+
+// parseAndValidateJWT parses a JWT with full signature and expiration validation
+// using keys from the JWKS client.
+func parseAndValidateJWT(tokenString string, jwks *JWKSClient) (map[string]interface{}, error) {
+	token, err := golangJWT.Parse(tokenString, func(token *golangJWT.Token) (interface{}, error) {
+		// Ensure the signing method is RSA
+		if _, ok := token.Method.(*golangJWT.SigningMethodRSA); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+
+		// Look up the key by kid
+		kid, ok := token.Header["kid"].(string)
+		if !ok || kid == "" {
+			return nil, fmt.Errorf("JWT header missing 'kid' (key ID)")
+		}
+
+		return jwks.GetKey(kid)
+	}, golangJWT.WithExpirationRequired())
+	if err != nil {
+		return nil, fmt.Errorf("JWT validation failed: %w", err)
+	}
+
+	claims, ok := token.Claims.(golangJWT.MapClaims)
+	if !ok {
+		return nil, fmt.Errorf("unexpected claims type")
 	}
 
 	return claims, nil

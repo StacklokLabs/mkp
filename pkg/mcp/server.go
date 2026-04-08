@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
 
@@ -42,6 +43,12 @@ type Config struct {
 	// ImpersonationGroupsClaim is the JWT claim to use for the Impersonate-Group headers.
 	// Defaults to "groups" if empty.
 	ImpersonationGroupsClaim string
+
+	// ImpersonationJWKSURL is an optional URL to a JWKS endpoint for JWT
+	// signature validation. When set, JWTs are validated against the keys
+	// from this endpoint (signature + expiration). When empty, JWTs are
+	// parsed without validation (trusted proxy mode).
+	ImpersonationJWKSURL string
 }
 
 // DefaultConfig returns a Config with default values
@@ -163,7 +170,8 @@ func StopServer() {
 }
 
 // identityConfig returns the identity.Config for the given server config.
-func identityConfig(config *Config) *identity.Config {
+// If a JWKS URL is configured, it initializes a JWKS client for JWT validation.
+func identityConfig(config *Config) (*identity.Config, error) {
 	cfg := identity.DefaultConfig()
 	if config.ImpersonationUserClaim != "" {
 		cfg.UserClaim = config.ImpersonationUserClaim
@@ -171,29 +179,43 @@ func identityConfig(config *Config) *identity.Config {
 	if config.ImpersonationGroupsClaim != "" {
 		cfg.GroupsClaim = config.ImpersonationGroupsClaim
 	}
-	return cfg
+	if config.ImpersonationJWKSURL != "" {
+		log.Printf("Initializing JWKS client for JWT validation from %s", config.ImpersonationJWKSURL)
+		jwksClient, err := identity.NewJWKSClient(config.ImpersonationJWKSURL)
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize JWKS client: %w", err)
+		}
+		cfg.JWKSClient = jwksClient
+	}
+	return cfg, nil
 }
 
 // CreateSSEServer creates a new SSE server for the MCP server.
 // When impersonation is enabled, it registers an HTTP context function that
 // extracts identity from the Authorization header JWT.
-func CreateSSEServer(mcpServer *server.MCPServer, config *Config) *server.SSEServer {
+func CreateSSEServer(mcpServer *server.MCPServer, config *Config) (*server.SSEServer, error) {
 	var opts []server.SSEOption
 	if config != nil && config.EnableImpersonation {
-		idCfg := identityConfig(config)
+		idCfg, err := identityConfig(config)
+		if err != nil {
+			return nil, err
+		}
 		opts = append(opts, server.WithSSEContextFunc(identity.HTTPContextFunc(idCfg)))
 	}
-	return server.NewSSEServer(mcpServer, opts...)
+	return server.NewSSEServer(mcpServer, opts...), nil
 }
 
 // CreateStreamableHTTPServer creates a new StreamableHTTP server for the MCP server.
 // When impersonation is enabled, it registers an HTTP context function that
 // extracts identity from the Authorization header JWT.
-func CreateStreamableHTTPServer(mcpServer *server.MCPServer, config *Config) *server.StreamableHTTPServer {
+func CreateStreamableHTTPServer(mcpServer *server.MCPServer, config *Config) (*server.StreamableHTTPServer, error) {
 	var opts []server.StreamableHTTPOption
 	if config != nil && config.EnableImpersonation {
-		idCfg := identityConfig(config)
+		idCfg, err := identityConfig(config)
+		if err != nil {
+			return nil, err
+		}
 		opts = append(opts, server.WithHTTPContextFunc(identity.HTTPContextFunc(idCfg)))
 	}
-	return server.NewStreamableHTTPServer(mcpServer, opts...)
+	return server.NewStreamableHTTPServer(mcpServer, opts...), nil
 }

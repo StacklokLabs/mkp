@@ -209,11 +209,13 @@ func TestCreateSSEServerWithImpersonation(t *testing.T) {
 		ImpersonationUserClaim:   "email",
 		ImpersonationGroupsClaim: "groups",
 	}
-	sseServer := CreateSSEServer(mcpServer, config)
+	sseServer, err := CreateSSEServer(mcpServer, config)
+	require.NoError(t, err)
 	assert.NotNil(t, sseServer)
 
 	// Without impersonation
-	sseServer2 := CreateSSEServer(mcpServer, nil)
+	sseServer2, err := CreateSSEServer(mcpServer, nil)
+	require.NoError(t, err)
 	assert.NotNil(t, sseServer2)
 }
 
@@ -227,10 +229,12 @@ func TestCreateStreamableHTTPServerWithImpersonation(t *testing.T) {
 		ImpersonationUserClaim:   "email",
 		ImpersonationGroupsClaim: "groups",
 	}
-	httpServer := CreateStreamableHTTPServer(mcpServer, config)
+	httpServer, err := CreateStreamableHTTPServer(mcpServer, config)
+	require.NoError(t, err)
 	assert.NotNil(t, httpServer)
 
 	// Without impersonation
-	httpServer2 := CreateStreamableHTTPServer(mcpServer, nil)
+	httpServer2, err := CreateStreamableHTTPServer(mcpServer, nil)
+	require.NoError(t, err)
 	assert.NotNil(t, httpServer2)
 }
