@@ -66,8 +66,14 @@ func (m *Implementation) HandleGetResource(ctx context.Context, request mcp.Call
 		Resource: resource,
 	}
 
+	// Get the appropriate client (may be impersonated)
+	client, clientErr := m.clientForContext(ctx)
+	if clientErr != nil {
+		return mcp.NewToolResultErrorFromErr("Failed to get Kubernetes client", clientErr), nil
+	}
+
 	// Get resource
-	result, err := m.k8sClient.GetResource(ctx, gvr, namespace, name, subresource, parameters)
+	result, err := client.GetResource(ctx, gvr, namespace, name, subresource, parameters)
 	if err != nil {
 		return mcp.NewToolResultErrorFromErr("Failed to get resource", err), nil
 	}

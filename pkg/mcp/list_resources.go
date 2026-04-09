@@ -24,6 +24,8 @@ import (
 //   - namespace: Namespace for namespaced resources
 //   - label_selector: Kubernetes label selector for filtering resources (optional)
 //     Label selector format: "key1=value1,key2=value2" for equality or "key1 in (value1, value2),!key3" for set-based
+//
+//nolint:gocyclo // Complexity is from parameter validation, not logic branching
 func (m *Implementation) HandleListResources(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	// Parse parameters
 	resourceType := mcp.ParseString(request, "resource_type", "")
@@ -70,14 +72,19 @@ func (m *Implementation) HandleListResources(ctx context.Context, request mcp.Ca
 		Resource: resource,
 	}
 
+	// Get the appropriate client (may be impersonated)
+	client, err := m.clientForContext(ctx)
+	if err != nil {
+		return mcp.NewToolResultErrorFromErr("Failed to get Kubernetes client", err), nil
+	}
+
 	// List resources with pagination support
 	var list *unstructured.UnstructuredList
-	var err error
 	switch resourceType {
 	case types.ResourceTypeClustered:
-		list, err = m.k8sClient.ListClusteredResources(ctx, gvr, labelSelector, int64(limit), continueToken)
+		list, err = client.ListClusteredResources(ctx, gvr, labelSelector, int64(limit), continueToken)
 	case types.ResourceTypeNamespaced:
-		list, err = m.k8sClient.ListNamespacedResources(ctx, gvr, namespace, labelSelector, int64(limit), continueToken)
+		list, err = client.ListNamespacedResources(ctx, gvr, namespace, labelSelector, int64(limit), continueToken)
 	default:
 		return mcp.NewToolResultError(fmt.Sprintf("Invalid resource_type: %s", resourceType)), nil
 	}
@@ -138,9 +145,11 @@ func (m *Implementation) HandleListResources(ctx context.Context, request mcp.Ca
 	return mcp.NewToolResultText(string(result)), nil
 }
 
-// HandleListAllResources handles the listResources request
+// HandleListAllResources handles the listResources request.
+// This always uses the base client (not impersonated) because it runs at
+// server startup to populate MCP resource metadata, not in a per-user request context.
 func (m *Implementation) HandleListAllResources(ctx context.Context) ([]mcp.Resource, error) {
-	// Get API resources from Kubernetes
+	// Get API resources from Kubernetes (always uses base client)
 	apiResources, err := m.k8sClient.ListAPIResources(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list API resources: %w", err)

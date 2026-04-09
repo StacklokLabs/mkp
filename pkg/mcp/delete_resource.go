@@ -50,13 +50,19 @@ func (m *Implementation) HandleDeleteResource(ctx context.Context, request mcp.C
 		Resource: resource,
 	}
 
+	// Get the appropriate client (may be impersonated)
+	client, clientErr := m.clientForContext(ctx)
+	if clientErr != nil {
+		return mcp.NewToolResultErrorFromErr("Failed to get Kubernetes client", clientErr), nil
+	}
+
 	// Delete resource
 	var err error
 	switch resourceType {
 	case types.ResourceTypeClustered:
-		err = m.k8sClient.DeleteClusteredResource(ctx, gvr, name)
+		err = client.DeleteClusteredResource(ctx, gvr, name)
 	case types.ResourceTypeNamespaced:
-		err = m.k8sClient.DeleteNamespacedResource(ctx, gvr, namespace, name)
+		err = client.DeleteNamespacedResource(ctx, gvr, namespace, name)
 	default:
 		return mcp.NewToolResultError(fmt.Sprintf("Invalid resource_type: %s", resourceType)), nil
 	}

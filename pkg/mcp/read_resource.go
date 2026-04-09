@@ -133,8 +133,14 @@ func (m *Implementation) HandleClusteredResource(
 		Resource: components.Resource,
 	}
 
+	// Get the appropriate client (may be impersonated)
+	client, err := m.clientForContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Kubernetes client: %w", err)
+	}
+
 	// Get resource
-	obj, err := m.k8sClient.GetClusteredResource(ctx, gvr, components.Name)
+	obj, err := client.GetClusteredResource(ctx, gvr, components.Name)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get resource: %w", err)
 	}
@@ -172,8 +178,14 @@ func (m *Implementation) HandleNamespacedResource(
 		Resource: components.Resource,
 	}
 
+	// Get the appropriate client (may be impersonated)
+	client, err := m.clientForContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Kubernetes client: %w", err)
+	}
+
 	// Get resource
-	obj, err := m.k8sClient.GetNamespacedResource(ctx, gvr, components.Namespace, components.Name)
+	obj, err := client.GetNamespacedResource(ctx, gvr, components.Namespace, components.Name)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get resource: %w", err)
 	}

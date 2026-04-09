@@ -273,6 +273,59 @@ func (c *Client) DeleteNamespacedResource(ctx context.Context, gvr schema.GroupV
 	return c.dynamicClient.Resource(gvr).Namespace(namespace).Delete(ctx, name, metav1.DeleteOptions{})
 }
 
+// WithImpersonation returns a new Client that impersonates the given user and groups.
+// The underlying rest.Config is cloned with ImpersonationConfig set, and new
+// discovery, dynamic, and clientset clients are created from it.
+//
+// The returned Client is independent of the receiver — mutations to one do not
+// affect the other. The returned Client does NOT inherit periodic refresh or
+// testing overrides (getPodLogs, execInPod) from the base client; it uses the
+// default implementations. This is intentional: impersonated clients are
+// short-lived, per-request objects.
+func (c *Client) WithImpersonation(user string, groups []string) (*Client, error) {
+	c.mu.RLock()
+	baseConfig := c.restConfig
+	c.mu.RUnlock()
+
+	if baseConfig == nil {
+		return nil, fmt.Errorf("base rest config is nil")
+	}
+
+	cfg := rest.CopyConfig(baseConfig)
+	cfg.Impersonate = rest.ImpersonationConfig{
+		UserName: user,
+		Groups:   groups,
+	}
+
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create impersonated discovery client: %w", err)
+	}
+
+	dynamicClient, err := dynamic.NewForConfig(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create impersonated dynamic client: %w", err)
+	}
+
+	clientset, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create impersonated clientset: %w", err)
+	}
+
+	impersonated := &Client{
+		discoveryClient: discoveryClient,
+		dynamicClient:   dynamicClient,
+		clientset:       clientset,
+		restConfig:      cfg,
+	}
+
+	// Set default implementations for pod logs and exec
+	impersonated.getPodLogs = impersonated.defaultGetPodLogs
+	impersonated.execInPod = impersonated.defaultExecInPod
+
+	return impersonated, nil
+}
+
 // SetDynamicClient sets the dynamic client (for testing purposes)
 func (c *Client) SetDynamicClient(dynamicClient dynamic.Interface) {
 	c.mu.Lock()
@@ -296,6 +349,14 @@ func (c *Client) SetClientset(clientset kubernetes.Interface) {
 
 	// Store the interface directly, we'll use it through the interface methods
 	c.clientset = clientset
+}
+
+// SetRestConfigForTest sets the rest config (for testing purposes)
+func (c *Client) SetRestConfigForTest(config *rest.Config) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.restConfig = config
 }
 
 // SetPodLogsFunc sets the function used to get pod logs (for testing purposes)

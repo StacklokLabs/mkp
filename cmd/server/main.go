@@ -23,6 +23,7 @@ const (
 	transportStreamableHTTP = "streamable-http"
 )
 
+//nolint:gocyclo // Complexity is from flag parsing and error handling, not logic branching
 func main() {
 	// Parse command line flags
 	kubeconfig := flag.String("kubeconfig", "", "Path to kubeconfig file. If not provided, in-cluster config will be used")
@@ -37,6 +38,27 @@ func main() {
 		"Whether to enable rate limiting for tool calls. When false, no rate limiting will be applied")
 	transport := flag.String("transport", getDefaultTransport(),
 		"Transport protocol to use: 'sse' or 'streamable-http'. Can also be set via MCP_TRANSPORT environment variable")
+
+	// Impersonation flags
+	enableImpersonation := flag.Bool("enable-impersonation", false,
+		"Enable Kubernetes API impersonation based on authenticated user identity from the Authorization header JWT. "+
+			"When enabled, the server's ServiceAccount must have RBAC permissions to impersonate users and groups. "+
+			"Use with a trusted proxy (e.g., ToolHive) that validates JWTs, or set --impersonation-jwks-url for "+
+			"standalone JWT validation")
+	impersonationUserClaim := flag.String("impersonation-user-claim", "email",
+		"JWT claim to use for the Kubernetes Impersonate-User header")
+	impersonationGroupsClaim := flag.String("impersonation-groups-claim", "groups",
+		"JWT claim to use for the Kubernetes Impersonate-Group headers")
+	impersonationJWKSURL := flag.String("impersonation-jwks-url", "",
+		"JWKS endpoint URL for JWT signature validation. When set, JWTs are validated "+
+			"against keys from this endpoint (signature + expiration). When empty, JWTs are "+
+			"parsed without validation (trusted proxy mode)")
+	impersonationJWTIssuer := flag.String("impersonation-jwt-issuer", "",
+		"Expected JWT issuer (iss claim). Only used when --impersonation-jwks-url is set. "+
+			"Prevents token replay from different issuers sharing the same IdP keys")
+	impersonationJWTAudience := flag.String("impersonation-jwt-audience", "",
+		"Expected JWT audience (aud claim). Only used when --impersonation-jwks-url is set. "+
+			"Per OIDC Core Section 3.1.3.7, relying parties should validate the audience")
 
 	flag.Parse()
 
@@ -75,13 +97,19 @@ func main() {
 
 	// Create MCP server config
 	config := &mcp.Config{
-		ServeResources:     *serveResources,
-		ReadWrite:          *readWrite,
-		EnableRateLimiting: *enableRateLimiting,
+		ServeResources:           *serveResources,
+		ReadWrite:                *readWrite,
+		EnableRateLimiting:       *enableRateLimiting,
+		EnableImpersonation:      *enableImpersonation,
+		ImpersonationUserClaim:   *impersonationUserClaim,
+		ImpersonationGroupsClaim: *impersonationGroupsClaim,
+		ImpersonationJWKSURL:     *impersonationJWKSURL,
+		ImpersonationJWTIssuer:   *impersonationJWTIssuer,
+		ImpersonationJWTAudience: *impersonationJWTAudience,
 	}
 
 	// Create MCP server using the helper function
-	mcpServer := mcp.CreateServer(k8sClient, config)
+	srv := mcp.CreateServer(k8sClient, config)
 
 	// Create and start the appropriate transport server
 	var transportServer interface {
@@ -92,12 +120,15 @@ func main() {
 	switch strings.ToLower(*transport) {
 	case transportStreamableHTTP:
 		log.Println("Using streamable-http transport")
-		transportServer = mcp.CreateStreamableHTTPServer(mcpServer)
+		transportServer, err = srv.CreateStreamableHTTPServer(ctx)
 	case transportSSE:
 		log.Println("Using SSE transport")
-		transportServer = mcp.CreateSSEServer(mcpServer)
+		transportServer, err = srv.CreateSSEServer(ctx)
 	default:
 		log.Fatalf("Invalid transport: %s. Must be 'sse' or 'streamable-http'", *transport)
+	}
+	if err != nil {
+		log.Fatalf("Failed to create transport server: %v", err)
 	}
 
 	// Channel to receive server errors
@@ -135,9 +166,9 @@ func main() {
 			log.Printf("Error during shutdown: %v", err)
 		}
 
-		// Stop the MCP server resources (including rate limiter)
+		// Stop the MCP server resources (rate limiter, JWKS refresh, etc.)
 		log.Println("Stopping MCP server resources...")
-		mcp.StopServer()
+		srv.Stop()
 
 		shutdownCh <- err
 		close(shutdownCh)
@@ -183,6 +214,7 @@ func getDefaultAddress() string {
 
 	// Check if port is within valid range
 	if port < 1 || port > 65535 {
+		//nolint:gosec // G706 -- port is a validated int from strconv.Atoi, no injection risk
 		log.Printf("Port %d out of valid range (1-65535), using default port", port)
 		return defaultPort
 	}

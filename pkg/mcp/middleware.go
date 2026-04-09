@@ -7,6 +7,7 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 
+	"github.com/StacklokLabs/mkp/pkg/identity"
 	"github.com/StacklokLabs/mkp/pkg/ratelimit"
 )
 
@@ -21,6 +22,9 @@ func WithTimeoutContext(timeout time.Duration) server.ServerOption {
 				sessionID = session.SessionID()
 			}
 
+			// Extract identity from the original context (set by HTTP context func)
+			id := identity.FromContext(ctx)
+
 			// Create a fresh context with a longer timeout (prevents cancellation)
 			timeoutCtx, cancel := context.WithTimeout(context.Background(), timeout)
 			defer cancel()
@@ -28,6 +32,11 @@ func WithTimeoutContext(timeout time.Duration) server.ServerOption {
 			// Add the session ID to the new context if we found one
 			if sessionID != "" {
 				timeoutCtx = ratelimit.SetSessionIDToContext(timeoutCtx, sessionID)
+			}
+
+			// Preserve identity in the new context for impersonation
+			if id != nil {
+				timeoutCtx = identity.WithContext(timeoutCtx, id)
 			}
 
 			// Call the next handler with the timeout context
