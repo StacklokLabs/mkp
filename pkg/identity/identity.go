@@ -64,6 +64,14 @@ type Config struct {
 	// (signature + expiration). When nil, JWTs are parsed without validation
 	// (trusted proxy mode).
 	JWKSClient *JWKSClient
+	// Issuer is the expected JWT issuer (iss claim). When set and JWKSClient
+	// is configured, the JWT issuer is validated. This prevents token replay
+	// from different issuers sharing the same IdP keys.
+	Issuer string
+	// Audience is the expected JWT audience (aud claim). When set and JWKSClient
+	// is configured, the JWT audience is validated. Per OIDC Core Section 3.1.3.7,
+	// relying parties must validate the audience to prevent token confusion.
+	Audience string
 }
 
 // DefaultConfig returns a Config with default claim names.
@@ -126,7 +134,7 @@ func ExtractFromJWT(token string, cfg *Config) (*Identity, error) {
 	var err error
 
 	if cfg.JWKSClient != nil {
-		claims, err = parseAndValidateJWT(token, cfg.JWKSClient)
+		claims, err = parseAndValidateJWT(token, cfg)
 	} else {
 		claims, err = parseJWTPayload(token)
 	}
@@ -192,22 +200,27 @@ func parseJWTPayload(token string) (map[string]interface{}, error) {
 }
 
 // parseAndValidateJWT parses a JWT with full signature and expiration validation
-// using keys from the JWKS client.
-func parseAndValidateJWT(tokenString string, jwks *JWKSClient) (map[string]interface{}, error) {
-	token, err := golangJWT.Parse(tokenString, func(token *golangJWT.Token) (interface{}, error) {
-		// Ensure the signing method is RSA
-		if _, ok := token.Method.(*golangJWT.SigningMethodRSA); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
+// using keys from the JWKS client. When Issuer or Audience are set in the config,
+// those claims are also validated.
+func parseAndValidateJWT(tokenString string, cfg *Config) (map[string]interface{}, error) {
+	parserOpts := []golangJWT.ParserOption{
+		golangJWT.WithExpirationRequired(),
+		// Restrict to asymmetric signing algorithms to prevent algorithm
+		// confusion attacks (e.g. accepting HMAC with a public key).
+		golangJWT.WithValidMethods([]string{
+			"RS256", "RS384", "RS512",
+			"ES256", "ES384", "ES512",
+			"EdDSA",
+		}),
+	}
+	if cfg.Issuer != "" {
+		parserOpts = append(parserOpts, golangJWT.WithIssuer(cfg.Issuer))
+	}
+	if cfg.Audience != "" {
+		parserOpts = append(parserOpts, golangJWT.WithAudience(cfg.Audience))
+	}
 
-		// Look up the key by kid
-		kid, ok := token.Header["kid"].(string)
-		if !ok || kid == "" {
-			return nil, fmt.Errorf("JWT header missing 'kid' (key ID)")
-		}
-
-		return jwks.GetKey(kid)
-	}, golangJWT.WithExpirationRequired())
+	token, err := golangJWT.Parse(tokenString, cfg.JWKSClient.Keyfunc(), parserOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("JWT validation failed: %w", err)
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/mark3labs/mcp-go/server"
@@ -49,6 +50,16 @@ type Config struct {
 	// from this endpoint (signature + expiration). When empty, JWTs are
 	// parsed without validation (trusted proxy mode).
 	ImpersonationJWKSURL string
+
+	// ImpersonationJWTIssuer is the expected JWT issuer (iss claim).
+	// Only used when ImpersonationJWKSURL is set. Prevents token replay
+	// from different issuers sharing the same IdP keys.
+	ImpersonationJWTIssuer string
+
+	// ImpersonationJWTAudience is the expected JWT audience (aud claim).
+	// Only used when ImpersonationJWKSURL is set. Per OIDC Core Section
+	// 3.1.3.7, relying parties must validate the audience.
+	ImpersonationJWTAudience string
 }
 
 // DefaultConfig returns a Config with default values
@@ -60,16 +71,21 @@ func DefaultConfig() *Config {
 	}
 }
 
-// serverResources holds resources that need to be cleaned up when the server is stopped
-type serverResources struct {
+// Server wraps the MCP server and owns all resources that need cleanup.
+// Use Stop() to release background goroutines and other resources.
+type Server struct {
+	mcpServer *server.MCPServer
+	config    *Config
+
+	mu          sync.Mutex
 	rateLimiter *ratelimit.RateLimiter
+	jwksClient  *identity.JWKSClient
 }
 
-// Global variable to hold server resources
-var resources *serverResources
-
-// CreateServer creates a new MCP server for Kubernetes
-func CreateServer(k8sClient *k8s.Client, config *Config) *server.MCPServer {
+// CreateServer creates a new MCP server for Kubernetes and returns a Server
+// handle that owns all associated resources. Call Stop() on the returned
+// Server to clean up.
+func CreateServer(k8sClient *k8s.Client, config *Config) *Server {
 	// Use default config if none provided
 	if config == nil {
 		config = DefaultConfig()
@@ -91,18 +107,14 @@ func CreateServer(k8sClient *k8s.Client, config *Config) *server.MCPServer {
 		server.WithRecovery(),
 	}
 
+	s := &Server{config: config}
+
 	// Add rate limiting middleware if enabled
 	if config.EnableRateLimiting {
 		log.Println("Server rate limiting enabled, initializing rate limiter")
-		// Create and store the rate limiter for cleanup
 		limiter := ratelimit.GetDefaultRateLimiter()
+		s.rateLimiter = limiter
 
-		// Store the limiter for cleanup when the server is stopped
-		resources = &serverResources{
-			rateLimiter: limiter,
-		}
-
-		// Add the middleware to the server options
 		middleware := limiter.Middleware()
 		options = append(options, server.WithToolHandlerMiddleware(middleware))
 	}
@@ -137,41 +149,54 @@ func CreateServer(k8sClient *k8s.Client, config *Config) *server.MCPServer {
 	// Add resources if enabled
 	if config.ServeResources {
 		go func() {
-			// Create a timeout context for listing resources
-			timeoutCtx, cancel := context.WithTimeout(context.Background(), defaultCtxTimeout)
+			timeoutCtx, cancel := context.WithTimeout(
+				context.Background(), defaultCtxTimeout,
+			)
 			defer cancel()
 
-			// List resources in a goroutine to avoid blocking server startup
-			resources, err := impl.HandleListAllResources(timeoutCtx)
+			apiResources, err := impl.HandleListAllResources(timeoutCtx)
 			if err != nil {
 				log.Printf("Failed to list resources: %v", err)
 				return
 			}
 
-			// Add resources to the server
-			for _, resource := range resources {
+			for _, resource := range apiResources {
 				mcpServer.AddResource(resource, nil)
 			}
 		}()
 	}
 
-	return mcpServer
+	s.mcpServer = mcpServer
+	return s
 }
 
-// StopServer stops the MCP server and cleans up resources
-func StopServer() {
-	// Clean up resources
-	if resources != nil {
-		// Stop the rate limiter if it exists
-		if resources.rateLimiter != nil {
-			resources.rateLimiter.Stop()
-		}
+// MCPServer returns the underlying mcp-go MCPServer.
+func (s *Server) MCPServer() *server.MCPServer {
+	return s.mcpServer
+}
+
+// Stop releases all resources owned by this Server, including rate limiters
+// and JWKS background refresh goroutines.
+func (s *Server) Stop() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.rateLimiter != nil {
+		s.rateLimiter.Stop()
+		s.rateLimiter = nil
+	}
+	if s.jwksClient != nil {
+		s.jwksClient.Stop()
+		s.jwksClient = nil
 	}
 }
 
 // identityConfig returns the identity.Config for the given server config.
-// If a JWKS URL is configured, it initializes a JWKS client for JWT validation.
-func identityConfig(config *Config) (*identity.Config, error) {
+// If a JWKS URL is configured, it initializes a JWKS client for JWT validation
+// and stores it in the Server for cleanup on shutdown.
+func (s *Server) identityConfig(
+	ctx context.Context, config *Config,
+) (*identity.Config, error) {
 	cfg := identity.DefaultConfig()
 	if config.ImpersonationUserClaim != "" {
 		cfg.UserClaim = config.ImpersonationUserClaim
@@ -180,12 +205,19 @@ func identityConfig(config *Config) (*identity.Config, error) {
 		cfg.GroupsClaim = config.ImpersonationGroupsClaim
 	}
 	if config.ImpersonationJWKSURL != "" {
-		log.Printf("Initializing JWKS client for JWT validation from %s", config.ImpersonationJWKSURL)
-		jwksClient, err := identity.NewJWKSClient(config.ImpersonationJWKSURL)
+		log.Printf("Initializing JWKS client for JWT validation from %s",
+			config.ImpersonationJWKSURL)
+		jwksClient, err := identity.NewJWKSClient(ctx, config.ImpersonationJWKSURL)
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize JWKS client: %w", err)
 		}
 		cfg.JWKSClient = jwksClient
+		cfg.Issuer = config.ImpersonationJWTIssuer
+		cfg.Audience = config.ImpersonationJWTAudience
+
+		s.mu.Lock()
+		s.jwksClient = jwksClient
+		s.mu.Unlock()
 	}
 	return cfg, nil
 }
@@ -193,29 +225,37 @@ func identityConfig(config *Config) (*identity.Config, error) {
 // CreateSSEServer creates a new SSE server for the MCP server.
 // When impersonation is enabled, it registers an HTTP context function that
 // extracts identity from the Authorization header JWT.
-func CreateSSEServer(mcpServer *server.MCPServer, config *Config) (*server.SSEServer, error) {
+func (s *Server) CreateSSEServer(
+	ctx context.Context,
+) (*server.SSEServer, error) {
 	var opts []server.SSEOption
-	if config != nil && config.EnableImpersonation {
-		idCfg, err := identityConfig(config)
+	if s.config != nil && s.config.EnableImpersonation {
+		idCfg, err := s.identityConfig(ctx, s.config)
 		if err != nil {
 			return nil, err
 		}
-		opts = append(opts, server.WithSSEContextFunc(identity.HTTPContextFunc(idCfg)))
+		opts = append(opts, server.WithSSEContextFunc(
+			identity.HTTPContextFunc(idCfg),
+		))
 	}
-	return server.NewSSEServer(mcpServer, opts...), nil
+	return server.NewSSEServer(s.mcpServer, opts...), nil
 }
 
-// CreateStreamableHTTPServer creates a new StreamableHTTP server for the MCP server.
-// When impersonation is enabled, it registers an HTTP context function that
-// extracts identity from the Authorization header JWT.
-func CreateStreamableHTTPServer(mcpServer *server.MCPServer, config *Config) (*server.StreamableHTTPServer, error) {
+// CreateStreamableHTTPServer creates a new StreamableHTTP server for the
+// MCP server. When impersonation is enabled, it registers an HTTP context
+// function that extracts identity from the Authorization header JWT.
+func (s *Server) CreateStreamableHTTPServer(
+	ctx context.Context,
+) (*server.StreamableHTTPServer, error) {
 	var opts []server.StreamableHTTPOption
-	if config != nil && config.EnableImpersonation {
-		idCfg, err := identityConfig(config)
+	if s.config != nil && s.config.EnableImpersonation {
+		idCfg, err := s.identityConfig(ctx, s.config)
 		if err != nil {
 			return nil, err
 		}
-		opts = append(opts, server.WithHTTPContextFunc(identity.HTTPContextFunc(idCfg)))
+		opts = append(opts, server.WithHTTPContextFunc(
+			identity.HTTPContextFunc(idCfg),
+		))
 	}
-	return server.NewStreamableHTTPServer(mcpServer, opts...), nil
+	return server.NewStreamableHTTPServer(s.mcpServer, opts...), nil
 }

@@ -180,11 +180,12 @@ func TestCreateServerWithImpersonation(t *testing.T) {
 		EnableImpersonation:      true,
 		ImpersonationUserClaim:   "email",
 		ImpersonationGroupsClaim: "groups",
-		ServeResources:           false, // Avoid goroutine that hits nil discovery client
+		ServeResources:           false,
 	}
 
-	mcpServer := CreateServer(mockClient, config)
-	assert.NotNil(t, mcpServer)
+	srv := CreateServer(mockClient, config)
+	defer srv.Stop()
+	assert.NotNil(t, srv.MCPServer())
 }
 
 func TestCreateServerWithoutImpersonation(t *testing.T) {
@@ -192,49 +193,54 @@ func TestCreateServerWithoutImpersonation(t *testing.T) {
 
 	config := &Config{
 		EnableImpersonation: false,
-		ServeResources:      false, // Avoid goroutine that hits nil discovery client
+		ServeResources:      false,
 	}
 
-	mcpServer := CreateServer(mockClient, config)
-	assert.NotNil(t, mcpServer)
+	srv := CreateServer(mockClient, config)
+	defer srv.Stop()
+	assert.NotNil(t, srv.MCPServer())
 }
 
 func TestCreateSSEServerWithImpersonation(t *testing.T) {
 	mockClient := &k8s.Client{}
-	mcpServer := CreateServer(mockClient, &Config{ServeResources: false})
+	srv := CreateServer(mockClient, &Config{ServeResources: false})
+	defer srv.Stop()
 
-	// With impersonation enabled
-	config := &Config{
+	// With impersonation enabled (override config for transport creation)
+	srv.config = &Config{
 		EnableImpersonation:      true,
 		ImpersonationUserClaim:   "email",
 		ImpersonationGroupsClaim: "groups",
 	}
-	sseServer, err := CreateSSEServer(mcpServer, config)
+	sseServer, err := srv.CreateSSEServer(t.Context())
 	require.NoError(t, err)
 	assert.NotNil(t, sseServer)
 
 	// Without impersonation
-	sseServer2, err := CreateSSEServer(mcpServer, nil)
+	srv.config = &Config{EnableImpersonation: false}
+	sseServer2, err := srv.CreateSSEServer(t.Context())
 	require.NoError(t, err)
 	assert.NotNil(t, sseServer2)
 }
 
 func TestCreateStreamableHTTPServerWithImpersonation(t *testing.T) {
 	mockClient := &k8s.Client{}
-	mcpServer := CreateServer(mockClient, &Config{ServeResources: false})
+	srv := CreateServer(mockClient, &Config{ServeResources: false})
+	defer srv.Stop()
 
 	// With impersonation enabled
-	config := &Config{
+	srv.config = &Config{
 		EnableImpersonation:      true,
 		ImpersonationUserClaim:   "email",
 		ImpersonationGroupsClaim: "groups",
 	}
-	httpServer, err := CreateStreamableHTTPServer(mcpServer, config)
+	httpServer, err := srv.CreateStreamableHTTPServer(t.Context())
 	require.NoError(t, err)
 	assert.NotNil(t, httpServer)
 
 	// Without impersonation
-	httpServer2, err := CreateStreamableHTTPServer(mcpServer, nil)
+	srv.config = &Config{EnableImpersonation: false}
+	httpServer2, err := srv.CreateStreamableHTTPServer(t.Context())
 	require.NoError(t, err)
 	assert.NotNil(t, httpServer2)
 }

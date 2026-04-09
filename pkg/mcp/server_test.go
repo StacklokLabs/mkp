@@ -46,15 +46,16 @@ func TestCreateSSEServer(t *testing.T) {
 
 	// Create an MCP server with ServeResources disabled to avoid
 	// background goroutine that can race with test completion
-	mcpServer := CreateServer(mockClient, &Config{
+	srv := CreateServer(mockClient, &Config{
 		ServeResources:     false,
 		EnableRateLimiting: true,
 	})
+	defer srv.Stop()
 
-	assert.NotNil(t, mcpServer, "MCP server should not be nil")
+	assert.NotNil(t, srv.MCPServer(), "MCP server should not be nil")
 
-	// Create an SSE server (nil config = no impersonation)
-	sseServer, err := CreateSSEServer(mcpServer, nil)
+	// Create an SSE server (no impersonation)
+	sseServer, err := srv.CreateSSEServer(t.Context())
 	assert.NoError(t, err, "CreateSSEServer should not return an error")
 
 	// Verify the server is not nil
