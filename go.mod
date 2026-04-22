@@ -1,12 +1,12 @@
 module github.com/StacklokLabs/mkp
 
-go 1.25.0
+go 1.25.5
 
 require (
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/lestrrat-go/httprc/v3 v3.0.5
 	github.com/lestrrat-go/jwx/v3 v3.0.13
-	github.com/mark3labs/mcp-go v0.48.0
+	github.com/mark3labs/mcp-go v0.49.0
 	github.com/stretchr/testify v1.11.1
 	k8s.io/api v0.35.3
 	k8s.io/apimachinery v0.35.3
