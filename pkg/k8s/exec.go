@@ -49,10 +49,10 @@ func (c *Client) defaultExecInPod(
 
 	// Create the exec request
 	req := c.clientset.CoreV1().RESTClient().Post().
-		Resource("pods").
+		Resource(resourcePods).
 		Name(name).
 		Namespace(namespace).
-		SubResource("exec")
+		SubResource(subresourceExec)
 
 	// Set query parameters
 	option := &corev1.PodExecOptions{
@@ -91,32 +91,32 @@ func (c *Client) defaultExecInPod(
 	// Create an unstructured object with the result
 	result := &unstructured.Unstructured{
 		Object: map[string]interface{}{
-			"apiVersion": "v1",
-			"kind":       "Pod",
-			"metadata": map[string]interface{}{
-				"name":      name,
-				"namespace": namespace,
+			fieldAPIVersion: apiVersionV1,
+			fieldKind:       kindPod,
+			fieldMetadata: map[string]interface{}{
+				fieldName:      name,
+				fieldNamespace: namespace,
 			},
-			"spec": map[string]interface{}{
-				"command": command,
+			fieldSpec: map[string]interface{}{
+				fieldCommand: command,
 			},
-			"status": map[string]interface{}{
-				"stdout": stdout.String(),
-				"stderr": stderr.String(),
-				"error":  "",
+			fieldStatus: map[string]interface{}{
+				fieldStdout: stdout.String(),
+				fieldStderr: stderr.String(),
+				fieldError:  "",
 			},
 		},
 	}
 
 	// Check if the command was killed due to timeout
 	if execCtx.Err() == context.DeadlineExceeded {
-		result.Object["status"].(map[string]interface{})["error"] = "command timed out"
+		result.Object[fieldStatus].(map[string]interface{})[fieldError] = "command timed out"
 		return result, nil
 	}
 
 	// Check for other errors
 	if err != nil {
-		result.Object["status"].(map[string]interface{})["error"] = err.Error()
+		result.Object[fieldStatus].(map[string]interface{})[fieldError] = err.Error()
 		return result, nil
 	}
 
@@ -130,7 +130,7 @@ func (c *Client) handlePodExec(
 	body map[string]interface{},
 ) (*unstructured.Unstructured, error) {
 	// Extract command from body
-	commandInterface, ok := body["command"]
+	commandInterface, ok := body[fieldCommand]
 	if !ok {
 		return nil, fmt.Errorf("command is required for pod exec")
 	}
@@ -190,7 +190,7 @@ func (c *Client) PostResource(
 	}
 
 	// Special handling for pod exec
-	if gvr.Resource == "pods" && subresource == "exec" {
+	if gvr.Resource == resourcePods && subresource == subresourceExec {
 		return c.handlePodExec(ctx, namespace, name, body)
 	}
 

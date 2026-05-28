@@ -51,13 +51,19 @@ func FromContext(ctx context.Context) *Identity {
 	return id
 }
 
+// Default JWT claim names used when no override is configured.
+const (
+	DefaultUserClaim   = "email"
+	DefaultGroupsClaim = "groups"
+)
+
 // Config holds configuration for identity extraction from JWTs.
 type Config struct {
 	// UserClaim is the JWT claim to use for the impersonated username.
-	// Defaults to "email".
+	// Defaults to DefaultUserClaim.
 	UserClaim string
 	// GroupsClaim is the JWT claim to use for impersonated groups.
-	// Defaults to "groups".
+	// Defaults to DefaultGroupsClaim.
 	GroupsClaim string
 	// JWKSClient is an optional JWKS client for JWT signature validation.
 	// When set, JWTs are validated against the keys from the JWKS endpoint
@@ -77,8 +83,8 @@ type Config struct {
 // DefaultConfig returns a Config with default claim names.
 func DefaultConfig() *Config {
 	return &Config{
-		UserClaim:   "email",
-		GroupsClaim: "groups",
+		UserClaim:   DefaultUserClaim,
+		GroupsClaim: DefaultGroupsClaim,
 	}
 }
 

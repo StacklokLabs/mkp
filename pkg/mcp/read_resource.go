@@ -154,7 +154,7 @@ func (m *Implementation) HandleClusteredResource(
 	return []mcp.ResourceContents{
 		mcp.TextResourceContents{
 			URI:      request.Params.URI,
-			MIMEType: "application/json",
+			MIMEType: mimeTypeJSON,
 			Text:     string(result),
 		},
 	}, nil
@@ -199,7 +199,7 @@ func (m *Implementation) HandleNamespacedResource(
 	return []mcp.ResourceContents{
 		mcp.TextResourceContents{
 			URI:      request.Params.URI,
-			MIMEType: "application/json",
+			MIMEType: mimeTypeJSON,
 			Text:     string(result),
 		},
 	}, nil
