@@ -17,6 +17,7 @@ const (
 	fieldStderr     = "stderr"
 	fieldError      = "error"
 	fieldLogs       = "logs"
+	fieldTruncated  = "truncated"
 
 	apiVersionV1    = "v1"
 	kindPod         = "Pod"

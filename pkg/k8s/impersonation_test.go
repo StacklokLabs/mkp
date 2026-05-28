@@ -90,4 +90,17 @@ func TestWithImpersonation(t *testing.T) {
 		assert.NotNil(t, impersonated.getPodLogs)
 		assert.NotNil(t, impersonated.execInPod)
 	})
+
+	t.Run("shares parent pod-log semaphore", func(t *testing.T) {
+		// The pod-log buffer budget is per-process, not per-impersonation —
+		// see GHSA-qw5r-ppcg-f8rj. An impersonated client must reference the
+		// SAME semaphore channel as its parent so concurrent in-flight reads
+		// across all impersonations stay bounded. Channel values compare
+		// equal iff they refer to the same underlying channel.
+		baseClient.podLogReadSem = make(chan struct{}, maxConcurrentPodLogReads)
+		impersonated, err := baseClient.WithImpersonation("user@example.com", nil)
+		require.NoError(t, err)
+		assert.True(t, baseClient.podLogReadSem == impersonated.podLogReadSem,
+			"impersonated client must share parent's semaphore")
+	})
 }

@@ -1,12 +1,15 @@
 package k8s
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	kubefake "k8s.io/client-go/kubernetes/fake"
@@ -336,4 +339,102 @@ func TestExecInPod(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Regression tests for the boundedBuffer used to cap pod-exec output size.
+// See GHSA-qw5r-ppcg-f8rj for the analogous pod-log fix.
+
+func TestBoundedBuffer_WriteUnderLimit(t *testing.T) {
+	t.Parallel()
+
+	b := newBoundedBuffer(1024)
+	n, err := b.Write([]byte("hello"))
+	require.NoError(t, err)
+	assert.Equal(t, 5, n)
+	assert.Equal(t, "hello", b.String())
+	assert.False(t, b.Truncated())
+}
+
+func TestBoundedBuffer_WriteAtExactLimit(t *testing.T) {
+	t.Parallel()
+
+	payload := bytes.Repeat([]byte("a"), 1024)
+	b := newBoundedBuffer(1024)
+	n, err := b.Write(payload)
+	require.NoError(t, err)
+	assert.Equal(t, 1024, n)
+	assert.Equal(t, 1024, len(b.String()))
+	assert.False(t, b.Truncated())
+}
+
+func TestBoundedBuffer_WriteOverLimit_TruncatesAndMarks(t *testing.T) {
+	t.Parallel()
+
+	payload := bytes.Repeat([]byte("a"), 4096)
+	b := newBoundedBuffer(1024)
+	n, err := b.Write(payload)
+	require.NoError(t, err)
+	// Caller sees the full write to keep the stream upstream happy.
+	assert.Equal(t, 4096, n)
+	// Internally we only buffered up to the cap.
+	assert.Equal(t, 1024, len(b.String()))
+	assert.True(t, b.Truncated())
+}
+
+func TestBoundedBuffer_MultipleWritesAccumulate(t *testing.T) {
+	t.Parallel()
+
+	b := newBoundedBuffer(10)
+	_, err := b.Write([]byte("hello"))
+	require.NoError(t, err)
+	assert.False(t, b.Truncated())
+
+	// Second write fits exactly.
+	_, err = b.Write([]byte("world"))
+	require.NoError(t, err)
+	assert.Equal(t, "helloworld", b.String())
+	assert.False(t, b.Truncated())
+
+	// Third write is entirely beyond the cap.
+	_, err = b.Write([]byte("!"))
+	require.NoError(t, err)
+	assert.Equal(t, "helloworld", b.String(), "no further bytes should be buffered")
+	assert.True(t, b.Truncated())
+}
+
+func TestBoundedBuffer_PartialOverflow(t *testing.T) {
+	t.Parallel()
+
+	b := newBoundedBuffer(10)
+	// First write fills 5 of 10.
+	_, err := b.Write([]byte("hello"))
+	require.NoError(t, err)
+	// Second write would put us 5 over: only the first 5 should be buffered.
+	_, err = b.Write([]byte("WORLD!!!!!"))
+	require.NoError(t, err)
+	assert.Equal(t, "helloWORLD", b.String())
+	assert.True(t, b.Truncated())
+}
+
+func TestBoundedBuffer_AsIOWriter(t *testing.T) {
+	t.Parallel()
+
+	// A boundedBuffer must satisfy io.Writer for use with
+	// remotecommand.StreamOptions. Use strings.NewReader to mimic the
+	// streamed-write pattern.
+	b := newBoundedBuffer(100)
+	r := strings.NewReader(strings.Repeat("x", 250))
+	buf := make([]byte, 32)
+	for {
+		n, err := r.Read(buf)
+		if n > 0 {
+			_, werr := b.Write(buf[:n])
+			require.NoError(t, werr)
+		}
+		if err != nil {
+			break
+		}
+	}
+	assert.Equal(t, 100, len(b.String()))
+	assert.True(t, b.Truncated())
 }

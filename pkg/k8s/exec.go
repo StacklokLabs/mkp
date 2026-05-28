@@ -17,6 +17,49 @@ import (
 // MaxExecTimeout is the maximum allowed timeout for exec operations to prevent abuse
 const MaxExecTimeout = 1 * time.Minute
 
+// maxExecStreamBytes caps the in-memory buffer for each of stdout/stderr from
+// pod exec, applied alongside MaxExecTimeout. Defence-in-depth against memory
+// exhaustion from a long-running command producing high-volume output. See
+// GHSA-qw5r-ppcg-f8rj for the analogous pod-log fix.
+const maxExecStreamBytes int64 = 1 << 20 // 1 MiB
+
+// boundedBuffer is an io.Writer that accumulates up to a configured number of
+// bytes and silently drops the rest, recording the fact via Truncated(). The
+// truncation is graceful rather than an error so that a long-running command
+// still surfaces partial output (with a marker) instead of failing entirely.
+type boundedBuffer struct {
+	buf       bytes.Buffer
+	remaining int64
+	truncated bool
+}
+
+func newBoundedBuffer(maxBytes int64) *boundedBuffer {
+	return &boundedBuffer{remaining: maxBytes}
+}
+
+func (b *boundedBuffer) Write(p []byte) (int, error) {
+	if b.remaining <= 0 {
+		b.truncated = true
+		// Pretend we accepted the bytes so the stream upstream doesn't error.
+		return len(p), nil
+	}
+	if int64(len(p)) > b.remaining {
+		n, err := b.buf.Write(p[:b.remaining])
+		b.remaining -= int64(n)
+		b.truncated = true
+		if err != nil {
+			return n, err
+		}
+		return len(p), nil
+	}
+	n, err := b.buf.Write(p)
+	b.remaining -= int64(n)
+	return n, err
+}
+
+func (b *boundedBuffer) String() string  { return b.buf.String() }
+func (b *boundedBuffer) Truncated() bool { return b.truncated }
+
 // defaultExecInPod is the default implementation of ExecInPodFunc
 func (c *Client) defaultExecInPod(
 	ctx context.Context,
@@ -73,8 +116,9 @@ func (c *Client) defaultExecInPod(
 		scheme.ParameterCodec,
 	)
 
-	// Create buffers for stdout and stderr
-	var stdout, stderr bytes.Buffer
+	// Bounded buffers for stdout and stderr (see maxExecStreamBytes).
+	stdout := newBoundedBuffer(maxExecStreamBytes)
+	stderr := newBoundedBuffer(maxExecStreamBytes)
 
 	// Create the SPDY executor
 	exec, err := remotecommand.NewSPDYExecutor(c.restConfig, "POST", req.URL())
@@ -84,9 +128,18 @@ func (c *Client) defaultExecInPod(
 
 	// Execute the command
 	err = exec.StreamWithContext(execCtx, remotecommand.StreamOptions{
-		Stdout: &stdout,
-		Stderr: &stderr,
+		Stdout: stdout,
+		Stderr: stderr,
 	})
+
+	status := map[string]interface{}{
+		fieldStdout: stdout.String(),
+		fieldStderr: stderr.String(),
+		fieldError:  "",
+	}
+	if stdout.Truncated() || stderr.Truncated() {
+		status[fieldTruncated] = true
+	}
 
 	// Create an unstructured object with the result
 	result := &unstructured.Unstructured{
@@ -100,11 +153,7 @@ func (c *Client) defaultExecInPod(
 			fieldSpec: map[string]interface{}{
 				fieldCommand: command,
 			},
-			fieldStatus: map[string]interface{}{
-				fieldStdout: stdout.String(),
-				fieldStderr: stderr.String(),
-				fieldError:  "",
-			},
+			fieldStatus: status,
 		},
 	}
 

@@ -54,7 +54,18 @@ type Client struct {
 	// function overrides for testing purposes
 	getPodLogs PodLogsFunc
 	execInPod  ExecInPodFunc
+
+	// podLogReadSem bounds the number of pod-log reads in flight at once.
+	// Each in-flight read can buffer up to maxPodLogLimitBytes; this caps
+	// the aggregate memory the read path can hold across concurrent
+	// requests. Buffered to maxConcurrentPodLogReads. See GHSA-qw5r-ppcg-f8rj.
+	podLogReadSem chan struct{}
 }
+
+// maxConcurrentPodLogReads caps the number of pod-log reads that may run
+// concurrently. With maxPodLogLimitBytes = 64 MiB per request, this bounds
+// the aggregate transient memory of the read path at ~512 MiB.
+const maxConcurrentPodLogReads = 8
 
 // NewClient creates a new Kubernetes client
 func NewClient(kubeconfigPath string) (*Client, error) {
@@ -87,6 +98,7 @@ func NewClient(kubeconfigPath string) (*Client, error) {
 		clientset:       clientset,
 		restConfig:      config,
 		kubeconfigPath:  kubeconfigPath,
+		podLogReadSem:   make(chan struct{}, maxConcurrentPodLogReads),
 	}
 
 	// Set the default implementations
@@ -317,6 +329,10 @@ func (c *Client) WithImpersonation(user string, groups []string) (*Client, error
 		dynamicClient:   dynamicClient,
 		clientset:       clientset,
 		restConfig:      cfg,
+		// Share the parent's semaphore: the memory budget is per-process,
+		// not per-impersonation, so independent semaphores would let N
+		// concurrent users each hold maxConcurrentPodLogReads slots.
+		podLogReadSem: c.podLogReadSem,
 	}
 
 	// Set default implementations for pod logs and exec
