@@ -84,7 +84,7 @@ func NewClusteredResourceTemplate() mcp.ResourceTemplate {
 		"k8s://clustered/{group}/{version}/{resource}/{name}",
 		"Kubernetes Clustered Resource",
 		mcp.WithTemplateDescription("A Kubernetes clustered resource"),
-		mcp.WithTemplateMIMEType("application/json"),
+		mcp.WithTemplateMIMEType(mimeTypeJSON),
 	)
 }
 
@@ -94,6 +94,6 @@ func NewNamespacedResourceTemplate() mcp.ResourceTemplate {
 		"k8s://namespaced/{namespace}/{group}/{version}/{resource}/{name}",
 		"Kubernetes Namespaced Resource",
 		mcp.WithTemplateDescription("A Kubernetes namespaced resource"),
-		mcp.WithTemplateMIMEType("application/json"),
+		mcp.WithTemplateMIMEType(mimeTypeJSON),
 	)
 }

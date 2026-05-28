@@ -29,7 +29,7 @@ func (c *Client) GetResource(ctx context.Context,
 	var err error
 
 	// Special handling for pod logs
-	if gvr.Resource == "pods" && subresource == "logs" {
+	if gvr.Resource == resourcePods && subresource == fieldLogs {
 		return c.getPodLogs(ctx, namespace, name, parameters)
 	}
 
@@ -120,13 +120,13 @@ func (c *Client) defaultGetPodLogs(
 	// Create an unstructured object with the logs
 	result := &unstructured.Unstructured{
 		Object: map[string]interface{}{
-			"apiVersion": "v1",
-			"kind":       "Pod",
-			"metadata": map[string]interface{}{
-				"name":      name,
-				"namespace": namespace,
+			fieldAPIVersion: apiVersionV1,
+			fieldKind:       kindPod,
+			fieldMetadata: map[string]interface{}{
+				fieldName:      name,
+				fieldNamespace: namespace,
 			},
-			"logs": buf.String(),
+			fieldLogs: buf.String(),
 		},
 	}
 

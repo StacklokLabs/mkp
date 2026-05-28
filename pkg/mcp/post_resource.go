@@ -101,7 +101,7 @@ func parsePostResourceParams(request mcp.CallToolRequest) (*postResourceParams, 
 	if params.name == "" {
 		return nil, fmt.Errorf("name is required")
 	}
-	if params.resourceType == "namespaced" && params.namespace == "" {
+	if params.resourceType == resourceTypeNamespaced && params.namespace == "" {
 		return nil, fmt.Errorf("namespace is required for namespaced resources")
 	}
 	if params.bodyMap == nil {
@@ -109,7 +109,7 @@ func parsePostResourceParams(request mcp.CallToolRequest) (*postResourceParams, 
 	}
 
 	// Validate resource_type
-	if params.resourceType != "clustered" && params.resourceType != "namespaced" {
+	if params.resourceType != resourceTypeClustered && params.resourceType != resourceTypeNamespaced {
 		return nil, fmt.Errorf("invalid resource_type: %s", params.resourceType)
 	}
 

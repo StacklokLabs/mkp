@@ -48,15 +48,24 @@ func rsaJWKSKey(kid string, pub *rsa.PublicKey) map[string]string {
 }
 
 // ecJWKSKey returns a JWKS key entry for the given ECDSA public key.
-func ecJWKSKey(kid string, pub *ecdsa.PublicKey) map[string]string {
+func ecJWKSKey(t *testing.T, kid string, pub *ecdsa.PublicKey) map[string]string {
+	t.Helper()
+	// pub.Bytes returns the uncompressed point (0x04 || X || Y); split it
+	// back into the coordinate halves the JWK encoding expects. The deprecated
+	// pub.X / pub.Y access path was removed in Go 1.26.
+	pt, err := pub.Bytes()
+	require.NoError(t, err)
+	size := (pub.Curve.Params().BitSize + 7) / 8
+	x := pt[1 : 1+size]
+	y := pt[1+size : 1+2*size]
 	return map[string]string{
 		"kty": "EC",
 		"use": "sig",
 		"kid": kid,
 		"alg": "ES256",
 		"crv": "P-256",
-		"x":   base64.RawURLEncoding.EncodeToString(pub.X.Bytes()),
-		"y":   base64.RawURLEncoding.EncodeToString(pub.Y.Bytes()),
+		"x":   base64.RawURLEncoding.EncodeToString(x),
+		"y":   base64.RawURLEncoding.EncodeToString(y),
 	}
 }
 
@@ -194,7 +203,7 @@ func TestExtractFromJWT_WithRSAJWKSValidation(t *testing.T) {
 func TestExtractFromJWT_WithECDSAJWKSValidation(t *testing.T) {
 	key := testECKeyPair(t)
 	kid := "ec-key-1"
-	srv := serveJWKS(t, ecJWKSKey(kid, &key.PublicKey))
+	srv := serveJWKS(t, ecJWKSKey(t, kid, &key.PublicKey))
 
 	jwksClient, err := NewJWKSClient(context.Background(), srv.URL)
 	require.NoError(t, err)
@@ -252,7 +261,7 @@ func TestExtractFromJWT_WithMixedKeyTypes(t *testing.T) {
 	// Serve both RSA and EC keys from the same JWKS endpoint
 	srv := serveJWKS(t,
 		rsaJWKSKey(rsaKid, &rsaKey.PublicKey),
-		ecJWKSKey(ecKid, &ecKey.PublicKey),
+		ecJWKSKey(t, ecKid, &ecKey.PublicKey),
 	)
 
 	jwksClient, err := NewJWKSClient(context.Background(), srv.URL)

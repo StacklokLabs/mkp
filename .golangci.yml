@@ -79,6 +79,7 @@ linters:
           - errcheck
           - dupl
           - gosec
+          - goconst
           - paralleltest
         path: (.+)_test\.go
       - linters:

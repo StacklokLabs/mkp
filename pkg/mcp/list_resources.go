@@ -38,7 +38,7 @@ func (m *Implementation) HandleListResources(ctx context.Context, request mcp.Ca
 	// Parse new annotation filtering parameters
 	includeAnnotations := request.GetBool("include_annotations", true)
 	excludeAnnotationKeys := request.GetStringSlice(
-		"exclude_annotation_keys", []string{"kubectl.kubernetes.io/last-applied-configuration"})
+		"exclude_annotation_keys", []string{kubectlLastAppliedAnnotation})
 	includeAnnotationKeys := request.GetStringSlice("include_annotation_keys", []string{})
 
 	// Parse pagination parameters
@@ -196,7 +196,7 @@ func (m *Implementation) HandleListAllResources(ctx context.Context) ([]mcp.Reso
 				uri,
 				name,
 				mcp.WithResourceDescription(fmt.Sprintf("Kubernetes %s resource", apiResource.Kind)),
-				mcp.WithMIMEType("application/json"),
+				mcp.WithMIMEType(mimeTypeJSON),
 			)
 
 			resources = append(resources, resource)
