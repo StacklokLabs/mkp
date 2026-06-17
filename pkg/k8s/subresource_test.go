@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -187,6 +188,115 @@ func TestGetResource(t *testing.T) {
 	// Note: The fake client doesn't fully support subresources in the same way as the real client,
 	// so we're not testing subresource functionality here. In a real environment, the subresource
 	// parameter would be passed to the Get method and the appropriate subresource would be returned.
+}
+
+func TestBuildPodLogOpts_ClampsLimitBytes(t *testing.T) {
+	// Regression test: attacker-controlled limitBytes must be clamped to a safe
+	// upper bound to prevent unbounded in-memory log reads (memory exhaustion / DoS).
+	testCases := []struct {
+		name     string
+		input    string
+		expected int64
+	}{
+		{
+			name:     "value within range is preserved",
+			input:    "4096",
+			expected: 4096,
+		},
+		{
+			name:     "value at the maximum is preserved",
+			input:    "1048576", // maxPodLogLimitBytes (1 MB)
+			expected: maxPodLogLimitBytes,
+		},
+		{
+			name:     "value above the maximum is clamped",
+			input:    "2147483647", // ~2 GB attacker value
+			expected: maxPodLogLimitBytes,
+		},
+		{
+			name:     "max int64 is clamped",
+			input:    "9223372036854775807",
+			expected: maxPodLogLimitBytes,
+		},
+		{
+			name:     "zero is clamped to the maximum",
+			input:    "0",
+			expected: maxPodLogLimitBytes,
+		},
+		{
+			name:     "negative value is clamped to the maximum",
+			input:    "-1",
+			expected: maxPodLogLimitBytes,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			base := &corev1.PodLogOptions{}
+			opts := buildPodLogOpts(base, map[string]string{"limitBytes": tc.input})
+
+			assert.NotNil(t, opts.LimitBytes)
+			assert.Equal(t, tc.expected, *opts.LimitBytes)
+		})
+	}
+}
+
+func TestBuildPodLogOpts_LimitBytesNonNumericLeavesDefault(t *testing.T) {
+	// A non-numeric value fails to parse and must leave the existing
+	// (safe) default in place rather than clearing the cap.
+	defaultLimit := int64(32 * 1024)
+	base := &corev1.PodLogOptions{LimitBytes: &defaultLimit}
+
+	opts := buildPodLogOpts(base, map[string]string{"limitBytes": "not-a-number"})
+
+	assert.NotNil(t, opts.LimitBytes)
+	assert.Equal(t, defaultLimit, *opts.LimitBytes)
+}
+
+func TestBuildPodLogOpts_ClampsTailLines(t *testing.T) {
+	// Regression test: attacker-controlled tailLines must be clamped to a safe
+	// upper bound.
+	testCases := []struct {
+		name     string
+		input    string
+		expected int64
+	}{
+		{
+			name:     "value within range is preserved",
+			input:    "50",
+			expected: 50,
+		},
+		{
+			name:     "value at the maximum is preserved",
+			input:    "1000", // maxPodLogTailLines
+			expected: maxPodLogTailLines,
+		},
+		{
+			name:     "value above the maximum is clamped",
+			input:    "999999999",
+			expected: maxPodLogTailLines,
+		},
+		{
+			name:     "zero is clamped to the maximum",
+			input:    "0",
+			expected: maxPodLogTailLines,
+		},
+		{
+			name:     "negative value is clamped to the maximum",
+			input:    "-5",
+			expected: maxPodLogTailLines,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			base := &corev1.PodLogOptions{}
+			opts := buildPodLogOpts(base, map[string]string{"tailLines": tc.input})
+
+			assert.NotNil(t, opts.TailLines)
+			assert.Equal(t, tc.expected, *opts.TailLines)
+		})
+	}
 }
 
 func TestGetPodLogs(t *testing.T) {

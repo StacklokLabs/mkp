@@ -14,6 +14,19 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
+// Pod log read limits guard against unbounded, attacker-controlled reads that
+// could exhaust server memory. Both the per-request parameters and the
+// in-memory copy of the log stream are capped.
+const (
+	// maxPodLogTailLines is the largest number of trailing log lines a caller
+	// may request via the tailLines parameter.
+	maxPodLogTailLines int64 = 1000
+	// maxPodLogLimitBytes is the largest log payload (in bytes) read into memory
+	// for a single request, both as a Kubernetes API limit and an application
+	// side hard cap.
+	maxPodLogLimitBytes int64 = 1024 * 1024 // 1 MB
+)
+
 // GetResource gets a resource or its subresource
 // If subresource is empty, the main resource is returned
 // parameters is a map of string key-value pairs that can be used to customize the request
@@ -110,11 +123,18 @@ func (c *Client) defaultGetPodLogs(
 		}
 	}()
 
-	// Read the logs
+	// Read the logs with a hard upper bound. Even though limitBytes is clamped
+	// when building the request options, wrap the stream in an io.LimitedReader
+	// as defense-in-depth so an oversized stream can never be fully buffered in
+	// memory.
 	buf := new(bytes.Buffer)
-	_, err = io.Copy(buf, podLogs)
+	limitedLogs := &io.LimitedReader{R: podLogs, N: maxPodLogLimitBytes + 1}
+	_, err = io.Copy(buf, limitedLogs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read pod logs: %w", err)
+	}
+	if limitedLogs.N == 0 {
+		return nil, fmt.Errorf("pod logs exceed maximum size of %d bytes", maxPodLogLimitBytes)
 	}
 
 	// Create an unstructured object with the logs
@@ -167,19 +187,36 @@ func buildPodLogOpts(podLogOpts *corev1.PodLogOptions, parameters map[string]str
 		podLogOpts.Timestamps = timestampsBool
 	}
 
-	// Limit bytes (overrides default limit)
-	if limitBytes, ok := parameters["limitBytes"]; ok {
-		if b, err := strconv.ParseInt(limitBytes, 10, 64); err == nil {
-			podLogOpts.LimitBytes = &b
-		}
+	// Limit bytes (overrides default limit). Clamped to a safe upper bound so a
+	// caller cannot request an unbounded read.
+	if v := parseClampedInt64(parameters, "limitBytes", maxPodLogLimitBytes); v != nil {
+		podLogOpts.LimitBytes = v
 	}
 
-	// Tail lines (overrides default tail lines)
-	if tailLines, ok := parameters["tailLines"]; ok {
-		if lines, err := strconv.ParseInt(tailLines, 10, 64); err == nil {
-			podLogOpts.TailLines = &lines
-		}
+	// Tail lines (overrides default tail lines). Clamped to a safe upper bound so
+	// a caller cannot request an unbounded read.
+	if v := parseClampedInt64(parameters, "tailLines", maxPodLogTailLines); v != nil {
+		podLogOpts.TailLines = v
 	}
 
 	return *podLogOpts
+}
+
+// parseClampedInt64 parses an integer parameter and clamps it to (0, max].
+// Non-positive or oversized values are clamped to max so an attacker cannot
+// request an unbounded pod log read. It returns nil if the parameter is absent
+// or not a valid integer, leaving any existing default in place.
+func parseClampedInt64(parameters map[string]string, key string, maxValue int64) *int64 {
+	raw, ok := parameters[key]
+	if !ok {
+		return nil
+	}
+	v, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil {
+		return nil
+	}
+	if v <= 0 || v > maxValue {
+		v = maxValue
+	}
+	return &v
 }
