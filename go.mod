@@ -5,9 +5,9 @@ go 1.26.3
 require (
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/lestrrat-go/httprc/v3 v3.0.6
-	github.com/lestrrat-go/jwx/v3 v3.1.1
+	github.com/lestrrat-go/jwx/v3 v3.3.0
 	github.com/mark3labs/mcp-go v0.56.0
-	github.com/stretchr/testify v1.11.1
+	github.com/stretchr/testify v1.12.1
 	k8s.io/api v0.36.2
 	k8s.io/apimachinery v0.36.2
 	k8s.io/client-go v0.36.2
@@ -42,15 +42,15 @@ require (
 	github.com/segmentio/asm v1.2.1 // indirect
 	github.com/spf13/cast v1.7.1 // indirect
 	github.com/spf13/pflag v1.0.9 // indirect
-	github.com/stretchr/objx v0.5.2 // indirect
+	github.com/stretchr/objx v0.5.3 // indirect
 	github.com/valyala/fastjson v1.6.10 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
-	go.yaml.in/yaml/v3 v3.0.4 // indirect
+	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/net v0.55.0 // indirect
 	golang.org/x/oauth2 v0.34.0 // indirect
-	golang.org/x/sys v0.45.0 // indirect
+	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/term v0.43.0 // indirect
 	golang.org/x/text v0.37.0 // indirect
 	golang.org/x/time v0.14.0 // indirect
