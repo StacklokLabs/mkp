@@ -105,6 +105,7 @@ github.com/mark3labs/mcp-go v0.56.0 h1:7aCj2wODCskMi08f923ADG+EfELZBdiKILny415cI
 github.com/mark3labs/mcp-go v0.56.0/go.mod h1:+8WclSK1ZUweCP3hvktSji8n8ABG/95QaEkeVE/Uwas=
 github.com/mark3labs/mcp-go v1.2.1 h1:gd8VD3feMAVycwAM0x1nhv42Q1oLLjfOyowoUzHULB8=
 github.com/mark3labs/mcp-go v1.2.1/go.mod h1:r2fW4o3wsoJ7IMsx1Wuq5xeP8PRGXPDfNveoGAYbb/s=
+github.com/mark3labs/mcp-go/v2 v2.0.0/go.mod h1:N4JVhttBUuOXyIdzW/u1Z9DXZPMtJl1FNBeTiieSZ5c=
 github.com/moby/spdystream v0.5.1 h1:9sNYeYZUcci9R6/w7KDaFWEWeV4LStVG78Mpyq/Zm/Y=
 github.com/moby/spdystream v0.5.1/go.mod h1:xBAYlnt/ay+11ShkdFKNAG7LsyK/tmNBVvVOwrfMgdI=
 github.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421/go.mod h1:6dJC0mAP4ikYIbvyc7fijjWJddQyLn8Ig3JB5CqoB9Q=
