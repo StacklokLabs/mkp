@@ -5,7 +5,7 @@ go 1.26.3
 require (
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/lestrrat-go/httprc/v3 v3.0.6
-	github.com/lestrrat-go/jwx/v3 v3.1.1
+	github.com/lestrrat-go/jwx/v3 v3.3.0
 	github.com/mark3labs/mcp-go v1.2.1
 	github.com/stretchr/testify v1.12.1
 	k8s.io/api v0.37.1
