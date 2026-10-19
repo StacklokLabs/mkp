@@ -40,7 +40,9 @@ func NewListResourcesTool() mcp.Tool {
 			}),
 		),
 		mcp.WithNumber("limit",
-			mcp.Description("Maximum number of resources to return (0 means no limit, default: 0)")),
+			mcp.Description("Maximum number of resources to return per page (1-500). "+
+				"Values above 500, or 0/omitted, are capped at 500; use the returned "+
+				"continue token to fetch the next page.")),
 		mcp.WithString("continue",
 			mcp.Description("Continue token for pagination (use the value from previous response's ListMeta.Continue)")),
 		mcp.WithToolAnnotation(mcp.ToolAnnotation{

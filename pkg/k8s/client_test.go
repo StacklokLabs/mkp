@@ -660,3 +660,97 @@ func TestListAPIResources(t *testing.T) {
 	assert.Equal(t, "apps/v1", resources[1].GroupVersion, "Expected GroupVersion 'apps/v1'")
 	assert.Len(t, resources[1].APIResources, 2, "Expected 2 API resources in the second list")
 }
+
+func TestEffectiveListLimit(t *testing.T) {
+	// The cap is the security property for GHSA-pcvx-mc89-xfjm: an omitted
+	// (0) or over-cap limit must never produce an unbounded list request.
+	tests := []struct {
+		name      string
+		requested int64
+		want      int64
+	}{
+		{"omitted defaults to cap", 0, maxListLimit},
+		{"negative defaults to cap", -1, maxListLimit},
+		{"below cap is honoured", 10, 10},
+		{"one below cap is honoured", maxListLimit - 1, maxListLimit - 1},
+		{"at cap is clamped to cap", maxListLimit, maxListLimit},
+		{"above cap is clamped to cap", maxListLimit + 1, maxListLimit},
+		{"far above cap is clamped to cap", 1_000_000, maxListLimit},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, effectiveListLimit(tt.requested),
+				"effectiveListLimit(%d)", tt.requested)
+			assert.LessOrEqual(t, effectiveListLimit(tt.requested), maxListLimit,
+				"effective limit must never exceed the cap")
+			assert.Positive(t, effectiveListLimit(tt.requested),
+				"effective limit must always be a bounded, positive page size")
+		})
+	}
+}
+
+func TestListResourcesAppliesCap(t *testing.T) {
+	// End-to-end: a list with limit omitted must reach the API with a bounded
+	// Limit, not the zero value that means "return everything". The fake
+	// dynamic client exposes the ListOptions it was called with via the
+	// recorded action, which we inspect in the reactor.
+	scheme := runtime.NewScheme()
+	listKinds := map[schema.GroupVersionResource]string{
+		{Group: "", Version: "v1", Resource: "configmaps"}: "ConfigMapList",
+	}
+	client := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, listKinds)
+	testClient := &Client{
+		dynamicClient: client,
+		listReadSem:   make(chan struct{}, maxConcurrentListReads),
+	}
+	gvr := schema.GroupVersionResource{Group: "", Version: "v1", Resource: "configmaps"}
+
+	var gotLimit int64 = -1
+	client.PrependReactor("list", "configmaps", func(action ktesting.Action) (bool, runtime.Object, error) {
+		if la, ok := action.(ktesting.ListActionImpl); ok {
+			gotLimit = la.ListOptions.Limit
+		}
+		return true, &unstructured.UnstructuredList{}, nil
+	})
+
+	// limit omitted (0): must be sent as the cap, never 0/unbounded.
+	_, err := testClient.ListNamespacedResources(context.Background(), gvr, "kube-system", "", 0, "")
+	assert.NoError(t, err)
+	assert.Equal(t, maxListLimit, gotLimit, "omitted limit must be sent as the cap, not unbounded")
+
+	// over-cap limit: must be clamped down.
+	gotLimit = -1
+	_, err = testClient.ListNamespacedResources(context.Background(), gvr, "kube-system", "", 100_000, "")
+	assert.NoError(t, err)
+	assert.Equal(t, maxListLimit, gotLimit, "over-cap limit must be clamped to the cap")
+}
+
+func TestAcquireListSlotRespectsContextCancellation(t *testing.T) {
+	// A full semaphore must not block forever: a cancelled context releases
+	// the waiter so a slow client cannot pin the list path.
+	c := &Client{listReadSem: make(chan struct{}, 1)}
+
+	release, err := c.acquireListSlot(context.Background())
+	assert.NoError(t, err, "first slot should be acquired immediately")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err = c.acquireListSlot(ctx)
+	assert.Error(t, err, "acquiring a slot on a full semaphore with a cancelled ctx should fail")
+
+	// Releasing the first slot lets the next acquire succeed.
+	release()
+	release2, err := c.acquireListSlot(context.Background())
+	assert.NoError(t, err, "slot should be acquirable again after release")
+	release2()
+}
+
+func TestAcquireListSlotNilSemaphore(t *testing.T) {
+	// A client built without a semaphore (e.g. a bare test client) must still
+	// work: acquireListSlot returns a no-op release.
+	c := &Client{}
+	release, err := c.acquireListSlot(context.Background())
+	assert.NoError(t, err)
+	assert.NotNil(t, release)
+	release() // must not panic
+}

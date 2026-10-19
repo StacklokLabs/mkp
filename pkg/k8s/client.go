@@ -60,12 +60,31 @@ type Client struct {
 	// the aggregate memory the read path can hold across concurrent
 	// requests. Buffered to maxConcurrentPodLogReads. See GHSA-qw5r-ppcg-f8rj.
 	podLogReadSem chan struct{}
+
+	// listReadSem bounds the number of list reads in flight at once. Each page
+	// is capped at maxListLimit items; this caps the aggregate memory the list
+	// path can hold across concurrent requests. Buffered to
+	// maxConcurrentListReads. See GHSA-pcvx-mc89-xfjm.
+	listReadSem chan struct{}
 }
 
 // maxConcurrentPodLogReads caps the number of pod-log reads that may run
 // concurrently. With maxPodLogLimitBytes = 64 MiB per request, this bounds
 // the aggregate transient memory of the read path at ~512 MiB.
 const maxConcurrentPodLogReads = 8
+
+// maxListLimit caps the number of items a single list call fetches from the
+// Kubernetes API in one page. Callers may request fewer via the tool's
+// "limit" parameter and page through the rest with the returned continue
+// token, but may not exceed this bound, nor disable it by omitting the
+// parameter. Without the cap a single list of a high-cardinality resource
+// type deserializes the entire collection into memory. See GHSA-pcvx-mc89-xfjm.
+const maxListLimit int64 = 500
+
+// maxConcurrentListReads caps the number of list reads that may run
+// concurrently. Together with maxListLimit this bounds the aggregate transient
+// memory of the list path, mirroring the pod-log read path.
+const maxConcurrentListReads = 8
 
 // NewClient creates a new Kubernetes client
 func NewClient(kubeconfigPath string) (*Client, error) {
@@ -99,6 +118,7 @@ func NewClient(kubeconfigPath string) (*Client, error) {
 		restConfig:      config,
 		kubeconfigPath:  kubeconfigPath,
 		podLogReadSem:   make(chan struct{}, maxConcurrentPodLogReads),
+		listReadSem:     make(chan struct{}, maxConcurrentListReads),
 	}
 
 	// Set the default implementations
@@ -145,8 +165,36 @@ func (c *Client) ListAPIResources(_ context.Context) ([]*metav1.APIResourceList,
 	return resourcesList, nil
 }
 
-// ListClusteredResources returns all clustered resources of the specified group/version/kind
-// with optional pagination support via limit and continueToken parameters
+// effectiveListLimit returns the page size to request from the Kubernetes API.
+// A caller-supplied limit is honoured when positive and within the cap; a
+// zero, negative (omitted) or over-cap value is clamped to maxListLimit so no
+// single list can request an unbounded page. See GHSA-pcvx-mc89-xfjm.
+func effectiveListLimit(requested int64) int64 {
+	if requested > 0 && requested < maxListLimit {
+		return requested
+	}
+	return maxListLimit
+}
+
+// acquireListSlot blocks until a list slot is free or ctx is cancelled. The
+// returned release function frees the slot and must always be called. A slow
+// client should not pin a slot, so context cancellation is respected while
+// waiting.
+func (c *Client) acquireListSlot(ctx context.Context) (release func(), err error) {
+	if c.listReadSem == nil {
+		return func() {}, nil
+	}
+	select {
+	case c.listReadSem <- struct{}{}:
+		return func() { <-c.listReadSem }, nil
+	case <-ctx.Done():
+		return nil, fmt.Errorf("waiting to list resources: %w", ctx.Err())
+	}
+}
+
+// ListClusteredResources returns clustered resources of the specified group/version/kind.
+// The page size is bounded by maxListLimit; callers page through larger
+// collections with limit and the returned continue token.
 func (c *Client) ListClusteredResources(
 	ctx context.Context,
 	gvr schema.GroupVersionResource,
@@ -154,16 +202,18 @@ func (c *Client) ListClusteredResources(
 	limit int64,
 	continueToken string,
 ) (*unstructured.UnstructuredList, error) {
+	release, err := c.acquireListSlot(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer release()
+
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
 	listOptions := metav1.ListOptions{
 		LabelSelector: labelSelector,
-	}
-
-	// Add pagination options if provided
-	if limit > 0 {
-		listOptions.Limit = limit
+		Limit:         effectiveListLimit(limit),
 	}
 	if continueToken != "" {
 		listOptions.Continue = continueToken
@@ -172,8 +222,9 @@ func (c *Client) ListClusteredResources(
 	return c.dynamicClient.Resource(gvr).List(ctx, listOptions)
 }
 
-// ListNamespacedResources returns all namespaced resources of the specified group/version/kind in the given namespace
-// with optional pagination support via limit and continueToken parameters
+// ListNamespacedResources returns namespaced resources of the specified group/version/kind
+// in the given namespace. The page size is bounded by maxListLimit; callers
+// page through larger collections with limit and the returned continue token.
 func (c *Client) ListNamespacedResources(
 	ctx context.Context,
 	gvr schema.GroupVersionResource,
@@ -182,16 +233,18 @@ func (c *Client) ListNamespacedResources(
 	limit int64,
 	continueToken string,
 ) (*unstructured.UnstructuredList, error) {
+	release, err := c.acquireListSlot(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer release()
+
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
 	listOptions := metav1.ListOptions{
 		LabelSelector: labelSelector,
-	}
-
-	// Add pagination options if provided
-	if limit > 0 {
-		listOptions.Limit = limit
+		Limit:         effectiveListLimit(limit),
 	}
 	if continueToken != "" {
 		listOptions.Continue = continueToken
@@ -329,10 +382,11 @@ func (c *Client) WithImpersonation(user string, groups []string) (*Client, error
 		dynamicClient:   dynamicClient,
 		clientset:       clientset,
 		restConfig:      cfg,
-		// Share the parent's semaphore: the memory budget is per-process,
+		// Share the parent's semaphores: the memory budget is per-process,
 		// not per-impersonation, so independent semaphores would let N
-		// concurrent users each hold maxConcurrentPodLogReads slots.
+		// concurrent users each hold the full set of slots.
 		podLogReadSem: c.podLogReadSem,
+		listReadSem:   c.listReadSem,
 	}
 
 	// Set default implementations for pod logs and exec
