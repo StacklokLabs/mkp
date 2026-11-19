@@ -100,7 +100,9 @@ func CreateServer(k8sClient *k8s.Client, config *Config) *Server {
 	}
 
 	options := []server.ServerOption{
-		server.WithResourceCapabilities(true, true),
+		// mkp never sends notifications/resources/updated, so it doesn't
+		// advertise resource subscriptions.
+		server.WithResourceCapabilities(false, true),
 		server.WithToolCapabilities(true),
 		// Add timeout middleware to prevent context cancellation errors
 		WithTimeoutContext(defaultCtxTimeout),
@@ -244,10 +246,14 @@ func (s *Server) CreateSSEServer(
 // CreateStreamableHTTPServer creates a new StreamableHTTP server for the
 // MCP server. When impersonation is enabled, it registers an HTTP context
 // function that extracts identity from the Authorization header JWT.
+//
+// The server runs in stateless mode. Every tool call is independent and
+// identity comes from each request's headers, so there's no session state to
+// keep. This matches MCP 2026-07-28, which removed protocol-level sessions.
 func (s *Server) CreateStreamableHTTPServer(
 	ctx context.Context,
 ) (*server.StreamableHTTPServer, error) {
-	var opts []server.StreamableHTTPOption
+	opts := []server.StreamableHTTPOption{server.WithStateLess(true)}
 	if s.config != nil && s.config.EnableImpersonation {
 		idCfg, err := s.identityConfig(ctx, s.config)
 		if err != nil {

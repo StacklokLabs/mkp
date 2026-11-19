@@ -458,8 +458,13 @@ The resource URIs follow these formats:
 
 MKP supports two transport protocols for the MCP server:
 
-- **Streamable HTTP**: The default transport protocol, suitable for most use cases
-- **SSE (Server-Sent Events)**: Legacy transport protocol, primarily for compatibility with older clients
+- **Streamable HTTP**: The default transport protocol, served at `/mcp`. It runs
+  in stateless mode: every request is independent and the server doesn't issue
+  an `Mcp-Session-Id`. This supports MCP spec 2026-07-28 as well as clients on
+  earlier protocol versions.
+- **SSE (Server-Sent Events)**: Deprecated by the MCP specification. Use it only
+  for older clients that don't support Streamable HTTP. The server logs a
+  warning at startup when SSE is selected.
 
 You can configure the transport protocol using either a CLI flag or an
 environment variable:
@@ -517,16 +522,22 @@ using the `--read-write` flag:
 
 MKP includes a built-in rate limiting mechanism to protect the server from
 excessive API calls, which is particularly important when used with AI agents.
-The rate limiter uses a token bucket algorithm and applies different limits
+The rate limiter uses a fixed one-minute window and applies different limits
 based on the operation type:
 
-- Read operations (list_resources, get_resource): 120 requests per minute
-- Write operations (apply_resource, delete_resource): 30 requests per minute
+- Read operations (`list_resources`, `get_resource`): 120 requests per minute
+- Write operations (`apply_resource`, `delete_resource`, `post_resource`): 30
+  requests per minute
 - Default for other operations: 60 requests per minute
 
-Rate limits are applied per client session, ensuring fair resource allocation
-across multiple clients. The rate limiting feature can be enabled or disabled
-via the command line flag:
+Each limit applies per tool, tracked separately for each client:
+
+- With impersonation enabled, limits apply per authenticated user, across all
+  of that user's connections.
+- Otherwise, limits apply per SSE session. Streamable HTTP is stateless, so
+  without impersonation each limit is shared by all clients of the server.
+
+The rate limiting feature can be enabled or disabled via the command line flag:
 
 ```bash
 # Run with rate limiting enabled (default)

@@ -8,6 +8,8 @@ import (
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
+
+	"github.com/StacklokLabs/mkp/pkg/identity"
 )
 
 var (
@@ -21,7 +23,7 @@ type RateLimiter struct {
 	mu            sync.RWMutex
 	limits        map[string]int                       // Tool name to requests per minute
 	defaultLimit  int                                  // Default requests per minute
-	requestCounts map[string]map[string]*windowCounter // SessionID:[Tool:Counter] mapping
+	requestCounts map[string]map[string]*windowCounter // ClientKey:[Tool:Counter] mapping
 	cleanupTicker *time.Ticker
 }
 
@@ -115,20 +117,28 @@ func SetSessionIDToContext(ctx context.Context, sessionID string) context.Contex
 	return context.WithValue(ctx, sessionIDKey{}, sessionID)
 }
 
-// getSessionID extracts the session ID from the request context, or falls back to tool name
-func getSessionID(ctx context.Context, toolName string) string {
-	// First check if we have a session ID directly in the context via our custom key
+// clientKey returns the key that rate-limit counters are tracked under for
+// the request in ctx. In order of preference:
+//
+//   - the authenticated user, when impersonation has put an identity in the
+//     context. This holds across sessions, so a client can't reset its limit
+//     by reconnecting.
+//   - the MCP session ID. Stateless Streamable HTTP has no session ID, so this
+//     applies only to the SSE transport.
+//   - otherwise, a single server-wide counter for the tool.
+func clientKey(ctx context.Context, toolName string) string {
+	if id := identity.FromContext(ctx); id != nil && id.User != "" {
+		return "user:" + id.User
+	}
+
 	if sessionID, ok := ctx.Value(sessionIDKey{}).(string); ok && sessionID != "" {
-		return sessionID
+		return "session:" + sessionID
 	}
 
-	// Try to get the session from the context via server's method
-	if session := server.ClientSessionFromContext(ctx); session != nil {
-		sessionID := session.SessionID()
-		return sessionID
+	if session := server.ClientSessionFromContext(ctx); session != nil && session.SessionID() != "" {
+		return "session:" + session.SessionID()
 	}
 
-	// If not found in either case: use the tool name as part of the identifier
 	return "tool:" + toolName
 }
 
@@ -170,11 +180,8 @@ func (rl *RateLimiter) Middleware() server.ToolHandlerMiddleware {
 		return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 			tool := request.Params.Name
 
-			// Get session ID or use tool-based identifier if session not available
-			sessionID := getSessionID(ctx, tool)
-
-			// Get the request counter for this session and tool
-			counter := rl.getCounter(sessionID, tool)
+			// Get the request counter for this client and tool
+			counter := rl.getCounter(clientKey(ctx, tool), tool)
 			counter.mu.Lock()
 			defer counter.mu.Unlock()
 

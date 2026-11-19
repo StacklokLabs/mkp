@@ -24,7 +24,7 @@ type Config struct {
 	DefaultLimit int
 	// ReadLimit is the rate limit for read operations (list_resources, get_resource)
 	ReadLimit int
-	// WriteLimit is the rate limit for write operations (apply_resource, delete_resource)
+	// WriteLimit is the rate limit for write operations (apply_resource, delete_resource, post_resource)
 	WriteLimit int
 }
 
@@ -68,6 +68,7 @@ func GetRateLimiterWithConfig(config *Config) *RateLimiter {
 		WithToolLimit(types.GetResourceToolName, config.ReadLimit),
 		WithToolLimit(types.ApplyResourceToolName, config.WriteLimit),
 		WithToolLimit(types.DeleteResourceToolName, config.WriteLimit),
+		WithToolLimit(types.PostResourceToolName, config.WriteLimit),
 	}
 
 	return NewRateLimiter(options...)

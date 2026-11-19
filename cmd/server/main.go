@@ -122,6 +122,7 @@ func main() {
 		log.Println("Using streamable-http transport")
 		transportServer, err = srv.CreateStreamableHTTPServer(ctx)
 	case transportSSE:
+		log.Println("WARNING: the SSE transport is deprecated by the MCP specification; use streamable-http instead")
 		log.Println("Using SSE transport")
 		transportServer, err = srv.CreateSSEServer(ctx)
 	default:
@@ -223,7 +224,7 @@ func getDefaultAddress() string {
 }
 
 // getDefaultTransport returns the transport to use based on MCP_TRANSPORT environment variable.
-// If the environment variable is not set, returns "sse".
+// If the environment variable is not set, returns "streamable-http".
 // Valid values are "sse" and "streamable-http".
 func getDefaultTransport() string {
 	defaultTransport := transportStreamableHTTP

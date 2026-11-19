@@ -7,8 +7,11 @@ import (
 	"time"
 
 	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/mark3labs/mcp-go/server"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+
+	"github.com/StacklokLabs/mkp/pkg/identity"
 )
 
 func TestRateLimiterCreation(t *testing.T) {
@@ -27,24 +30,86 @@ func TestRateLimiterCreation(t *testing.T) {
 	assert.Equal(t, 50, customLimiter.limits["test-tool"])
 }
 
-func TestGetSessionID(t *testing.T) {
-	// Test with session ID in context via custom key
-	ctx := context.Background()
-	ctx = SetSessionIDToContext(ctx, "test-session")
-	sessionID := getSessionID(ctx, "test-tool")
-	assert.Equal(t, "test-session", sessionID)
+func TestClientKey(t *testing.T) {
+	t.Parallel()
 
-	// Test with ClientSession in context
-	ctx = context.Background()
-	session := &mockSession{id: "mock-session"}
-	ctx = SetSessionIDToContext(ctx, session.SessionID())
-	sessionID = getSessionID(ctx, "test-tool")
-	assert.Equal(t, "mock-session", sessionID)
+	tests := []struct {
+		name string
+		ctx  context.Context
+		want string
+	}{
+		{
+			name: "session ID via custom key",
+			ctx:  SetSessionIDToContext(context.Background(), "test-session"),
+			want: "session:test-session",
+		},
+		{
+			name: "client session in context",
+			ctx: server.NewMCPServer("test", "0.0.1").
+				WithContext(context.Background(), &mockSession{id: "mock-session"}),
+			want: "session:mock-session",
+		},
+		{
+			// Stateless Streamable HTTP serves each request with an
+			// ephemeral session that has no ID.
+			name: "client session without ID falls back to tool",
+			ctx: server.NewMCPServer("test", "0.0.1").
+				WithContext(context.Background(), &mockSession{id: ""}),
+			want: "tool:test-tool",
+		},
+		{
+			name: "identity takes precedence over session",
+			ctx: identity.WithContext(
+				SetSessionIDToContext(context.Background(), "test-session"),
+				&identity.Identity{User: "alice@example.com"}),
+			want: "user:alice@example.com",
+		},
+		{
+			name: "identity without user is ignored",
+			ctx:  identity.WithContext(context.Background(), &identity.Identity{}),
+			want: "tool:test-tool",
+		},
+		{
+			name: "fallback to tool name",
+			ctx:  context.Background(),
+			want: "tool:test-tool",
+		},
+	}
 
-	// Test fallback to tool name
-	ctx = context.Background()
-	sessionID = getSessionID(ctx, "fallback-tool")
-	assert.Equal(t, "tool:fallback-tool", sessionID)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, clientKey(tt.ctx, "test-tool"))
+		})
+	}
+}
+
+func TestRateLimitingPerIdentity(t *testing.T) {
+	t.Parallel()
+
+	limiter := NewRateLimiter(WithDefaultLimit(1))
+	t.Cleanup(limiter.Stop)
+
+	mockHandler := new(MockToolHandler)
+	mockHandler.On("Handle", mock.Anything, mock.Anything).Return(
+		mcp.NewToolResultText("success"), nil,
+	)
+	wrappedHandler := limiter.Middleware()(mockHandler.Handle)
+	request := mcp.CallToolRequest{Params: mcp.CallToolParams{Name: "test-tool"}}
+
+	alice := identity.WithContext(context.Background(), &identity.Identity{User: "alice"})
+	bob := identity.WithContext(context.Background(), &identity.Identity{User: "bob"})
+
+	result, _ := wrappedHandler(alice, request)
+	assert.False(t, result.IsError)
+
+	// Alice is limited even from a different session.
+	result, _ = wrappedHandler(SetSessionIDToContext(alice, "another-session"), request)
+	assert.True(t, result.IsError)
+
+	// Bob has his own counter.
+	result, _ = wrappedHandler(bob, request)
+	assert.False(t, result.IsError)
 }
 
 func TestRateLimiting(t *testing.T) {
