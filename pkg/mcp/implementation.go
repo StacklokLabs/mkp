@@ -2,13 +2,21 @@ package mcp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/StacklokLabs/mkp/pkg/identity"
 	"github.com/StacklokLabs/mkp/pkg/k8s"
 )
 
-// Implementation implements the MCP protocol
+// errNoCluster is returned by tool and resource handlers when the server
+// started without a Kubernetes configuration.
+var errNoCluster = errors.New("no Kubernetes cluster is configured; " +
+	"mount a kubeconfig and pass --kubeconfig or set KUBECONFIG, or run mkp in a cluster")
+
+// Implementation implements the MCP protocol. k8sClient is nil when the
+// server started without a Kubernetes configuration, so it can still list
+// its tools.
 type Implementation struct {
 	k8sClient            *k8s.Client
 	impersonationEnabled bool
@@ -40,6 +48,10 @@ func NewImplementationWithImpersonation(k8sClient *k8s.Client) *Implementation {
 // and impersonation is enabled, it returns an error (strict mode — anonymous
 // access is not allowed when impersonation is on).
 func (m *Implementation) clientForContext(ctx context.Context) (*k8s.Client, error) {
+	if m.k8sClient == nil {
+		return nil, errNoCluster
+	}
+
 	if !m.impersonationEnabled {
 		return m.k8sClient, nil
 	}

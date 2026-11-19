@@ -126,3 +126,54 @@ func TestCreateStreamableHTTPServer(t *testing.T) {
 		assert.Equal(t, "1.2.3", result["serverInfo"].(map[string]any)["version"])
 	})
 }
+
+// TestServerWithoutCluster checks that a server started without a Kubernetes
+// configuration still lists its tools, and that tool calls fail with a clear
+// error instead of panicking.
+func TestServerWithoutCluster(t *testing.T) {
+	t.Parallel()
+
+	srv := CreateServer(nil, &Config{ReadWrite: true, EnableRateLimiting: false})
+	t.Cleanup(srv.Stop)
+
+	httpServer, err := srv.CreateStreamableHTTPServer(t.Context())
+	require.NoError(t, err)
+	ts := httptest.NewServer(httpServer)
+	t.Cleanup(ts.Close)
+
+	call := func(t *testing.T, method, params string) map[string]any {
+		t.Helper()
+		body := `{"jsonrpc":"2.0","id":1,"method":"` + method + `","params":` + params + `}`
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, ts.URL+"/mcp", strings.NewReader(body))
+		require.NoError(t, err)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept", "application/json, text/event-stream")
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		t.Cleanup(func() { _ = resp.Body.Close() })
+		var msg map[string]any
+		require.NoError(t, json.NewDecoder(resp.Body).Decode(&msg))
+		require.Nil(t, msg["error"], "unexpected JSON-RPC error: %v", msg["error"])
+		result, ok := msg["result"].(map[string]any)
+		require.True(t, ok)
+		return result
+	}
+
+	t.Run("tools/list", func(t *testing.T) {
+		t.Parallel()
+		tools, ok := call(t, "tools/list", `{}`)["tools"].([]any)
+		require.True(t, ok)
+		assert.Len(t, tools, 5)
+	})
+
+	t.Run("tools/call", func(t *testing.T) {
+		t.Parallel()
+		result := call(t, "tools/call", `{"name":"list_resources","arguments":{`+
+			`"resource_type":"namespaced","version":"v1","resource":"pods","namespace":"default"}}`)
+		assert.Equal(t, true, result["isError"])
+		content, ok := result["content"].([]any)
+		require.True(t, ok)
+		require.NotEmpty(t, content)
+		assert.Contains(t, content[0].(map[string]any)["text"], "no Kubernetes cluster is configured")
+	})
+}

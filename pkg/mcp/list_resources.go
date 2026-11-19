@@ -149,6 +149,10 @@ func (m *Implementation) HandleListResources(ctx context.Context, request mcp.Ca
 // This always uses the base client (not impersonated) because it runs at
 // server startup to populate MCP resource metadata, not in a per-user request context.
 func (m *Implementation) HandleListAllResources(ctx context.Context) ([]mcp.Resource, error) {
+	if m.k8sClient == nil {
+		return nil, errNoCluster
+	}
+
 	// Get API resources from Kubernetes (always uses base client)
 	apiResources, err := m.k8sClient.ListAPIResources(ctx)
 	if err != nil {

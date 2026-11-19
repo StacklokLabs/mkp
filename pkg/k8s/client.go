@@ -3,7 +3,9 @@ package k8s
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"sync"
 	"time"
@@ -131,23 +133,46 @@ func NewClient(kubeconfigPath string) (*Client, error) {
 // ConfigGetter is a function type for getting Kubernetes client configuration
 type ConfigGetter func(kubeconfigPath string) (*rest.Config, error)
 
-// defaultConfigGetter is the default implementation of ConfigGetter
-func defaultConfigGetter(kubeconfigPath string) (*rest.Config, error) {
-	if kubeconfigPath == "" {
-		// Try in-cluster config first
-		config, err := rest.InClusterConfig()
-		if err == nil {
-			return config, nil
-		}
+// ErrNoConfig is returned when no kubeconfig path was given and no
+// Kubernetes configuration could be found: the server isn't running in a
+// cluster, KUBECONFIG is unset or names no existing files, and
+// ~/.kube/config doesn't exist.
+var ErrNoConfig = errors.New("no Kubernetes configuration found")
 
-		// Fall back to default kubeconfig path
+// defaultConfigGetter is the default implementation of ConfigGetter.
+//
+// An explicit kubeconfigPath is always used as given. Otherwise it tries the
+// in-cluster config, then the standard kubectl loading rules: the files
+// listed in KUBECONFIG, or ~/.kube/config.
+func defaultConfigGetter(kubeconfigPath string) (*rest.Config, error) {
+	if kubeconfigPath != "" {
+		return clientcmd.BuildConfigFromFlags("", kubeconfigPath)
+	}
+
+	if config, err := rest.InClusterConfig(); err == nil {
+		return config, nil
+	}
+
+	rules := clientcmd.NewDefaultClientConfigLoadingRules()
+	if os.Getenv(clientcmd.RecommendedConfigPathEnvVar) == "" {
+		// client-go resolves ~/.kube/config once at package init. Resolve it
+		// now instead, as mkp always has. Drop the legacy-file migration
+		// rules too, which point at the init-time home directory.
+		rules.Precedence = nil
+		rules.MigrationRules = nil
 		if home := homedir.HomeDir(); home != "" {
-			kubeconfigPath = filepath.Join(home, ".kube", "config")
+			rules.Precedence = []string{filepath.Join(home, clientcmd.RecommendedHomeDir, clientcmd.RecommendedFileName)}
 		}
 	}
 
-	// Use the provided or default kubeconfig path
-	return clientcmd.BuildConfigFromFlags("", kubeconfigPath)
+	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		rules,
+		&clientcmd.ConfigOverrides{},
+	).ClientConfig()
+	if clientcmd.IsEmptyConfig(err) {
+		return nil, ErrNoConfig
+	}
+	return config, err
 }
 
 // getConfig is the current ConfigGetter implementation
