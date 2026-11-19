@@ -73,7 +73,7 @@ func TestCreateSSEServer(t *testing.T) {
 func TestCreateStreamableHTTPServer(t *testing.T) {
 	t.Parallel()
 
-	srv := CreateServer(&k8s.Client{}, &Config{ReadWrite: true})
+	srv := CreateServer(&k8s.Client{}, &Config{ReadWrite: true, Version: "1.2.3"})
 	t.Cleanup(srv.Stop)
 
 	httpServer, err := srv.CreateStreamableHTTPServer(t.Context())
@@ -121,5 +121,8 @@ func TestCreateStreamableHTTPServer(t *testing.T) {
 
 		require.Nil(t, msg["error"])
 		assert.Empty(t, resp.Header.Get("Mcp-Session-Id"))
+		result, ok := msg["result"].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, "1.2.3", result["serverInfo"].(map[string]any)["version"])
 	})
 }

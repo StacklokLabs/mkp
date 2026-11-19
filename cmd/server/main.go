@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"syscall"
@@ -16,6 +17,12 @@ import (
 	"github.com/StacklokLabs/mkp/pkg/k8s"
 	"github.com/StacklokLabs/mkp/pkg/mcp"
 )
+
+// devVersion is reported when no release version is available.
+const devVersion = "dev"
+
+// version is set at build time with -X main.version=<version>. See .ko.yaml.
+var version = devVersion
 
 const (
 	// Transport types
@@ -97,6 +104,7 @@ func main() {
 
 	// Create MCP server config
 	config := &mcp.Config{
+		Version:                  resolveVersion(version, debug.ReadBuildInfo),
 		ServeResources:           *serveResources,
 		ReadWrite:                *readWrite,
 		EnableRateLimiting:       *enableRateLimiting,
@@ -194,6 +202,19 @@ func main() {
 	log.Println("Server shutdown complete, exiting...")
 	// Ensure we exit the program
 	os.Exit(0)
+}
+
+// resolveVersion returns the server version to report to clients. It prefers
+// the version set by ldflags. Otherwise it falls back to the module version
+// recorded by `go install module@version`, and finally to "dev".
+func resolveVersion(ldflagsVersion string, readBuildInfo func() (*debug.BuildInfo, bool)) string {
+	if ldflagsVersion != "" && ldflagsVersion != devVersion {
+		return ldflagsVersion
+	}
+	if info, ok := readBuildInfo(); ok && info.Main.Version != "" && info.Main.Version != "(devel)" {
+		return strings.TrimPrefix(info.Main.Version, "v")
+	}
+	return devVersion
 }
 
 // getDefaultAddress returns the address to listen on based on MCP_PORT environment variable.

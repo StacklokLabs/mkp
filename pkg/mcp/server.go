@@ -19,6 +19,10 @@ const defaultCtxTimeout = 30 * time.Second
 
 // Config holds configuration options for the MCP server
 type Config struct {
+	// Version is the server version reported to clients. Defaults to "dev"
+	// if empty.
+	Version string
+
 	// ServeResources determines whether to serve cluster resources
 	// Setting this to false can reduce context size for LLMs when working with large clusters
 	ServeResources bool
@@ -121,10 +125,15 @@ func CreateServer(k8sClient *k8s.Client, config *Config) *Server {
 		options = append(options, server.WithToolHandlerMiddleware(middleware))
 	}
 
+	version := config.Version
+	if version == "" {
+		version = "dev"
+	}
+
 	// Create MCP server with all options
 	mcpServer := server.NewMCPServer(
 		"kubernetes-mcp-server",
-		"0.1.0",
+		version,
 		options...,
 	)
 
