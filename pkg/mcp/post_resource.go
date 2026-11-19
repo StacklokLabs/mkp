@@ -119,6 +119,7 @@ func parsePostResourceParams(request mcp.CallToolRequest) (*postResourceParams, 
 // NewPostResourceTool creates a new post_resource tool
 func NewPostResourceTool() mcp.Tool {
 	return mcp.NewTool(types.PostResourceToolName,
+		mcp.WithToolTitle(postResourceTitle),
 		mcp.WithDescription("Post to a Kubernetes resource or its subresource"),
 		mcp.WithString("resource_type",
 			mcp.Description("Type of resource to post to (clustered or namespaced)"),
@@ -144,5 +145,8 @@ func NewPostResourceTool() mcp.Tool {
 			mcp.Required()),
 		mcp.WithObject("parameters",
 			mcp.Description("Optional parameters for the request")),
+		// Posting (for example, pod exec) runs arbitrary actions, so repeating a
+		// call can have additional effects.
+		mcp.WithToolAnnotation(writeAnnotations(postResourceTitle, false)),
 	)
 }

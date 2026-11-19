@@ -77,6 +77,7 @@ func (m *Implementation) HandleDeleteResource(ctx context.Context, request mcp.C
 // NewDeleteResourceTool creates a new delete_resource tool
 func NewDeleteResourceTool() mcp.Tool {
 	return mcp.NewTool(types.DeleteResourceToolName,
+		mcp.WithToolTitle(deleteResourceTitle),
 		mcp.WithDescription("Delete a Kubernetes resource"),
 		mcp.WithString("resource_type",
 			mcp.Description("Type of resource to delete (clustered or namespaced)"),
@@ -94,10 +95,7 @@ func NewDeleteResourceTool() mcp.Tool {
 		mcp.WithString("name",
 			mcp.Description("Name of the resource to delete"),
 			mcp.Required()),
-		mcp.WithToolAnnotation(mcp.ToolAnnotation{
-			Title:          "Delete a Kubernetes resource",
-			ReadOnlyHint:   BoolPtr(false),
-			IdempotentHint: BoolPtr(true),
-		}),
+		// Deleting an already-deleted resource has no further effect.
+		mcp.WithToolAnnotation(writeAnnotations(deleteResourceTitle, true)),
 	)
 }

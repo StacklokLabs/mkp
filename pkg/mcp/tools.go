@@ -9,6 +9,7 @@ import (
 // NewListResourcesTool creates a new list_resources tool
 func NewListResourcesTool() mcp.Tool {
 	return mcp.NewTool(types.ListResourcesToolName,
+		mcp.WithToolTitle(listResourcesTitle),
 		mcp.WithDescription("List Kubernetes resources"),
 		mcp.WithString("resource_type",
 			mcp.Description("Type of resource to list (clustered or namespaced)"),
@@ -39,22 +40,22 @@ func NewListResourcesTool() mcp.Tool {
 				"type": "string",
 			}),
 		),
-		mcp.WithNumber("limit",
+		mcp.WithInteger("limit",
 			mcp.Description("Maximum number of resources to return per page (1-500). "+
-				"Values above 500, or 0/omitted, are capped at 500; use the returned "+
-				"continue token to fetch the next page.")),
+				"0 or omitted returns up to 500; use the returned continue token "+
+				"to fetch the next page."),
+			mcp.Min(0),
+			mcp.Max(500)),
 		mcp.WithString("continue",
 			mcp.Description("Continue token for pagination (use the value from previous response's ListMeta.Continue)")),
-		mcp.WithToolAnnotation(mcp.ToolAnnotation{
-			Title:        "List Kubernetes resources",
-			ReadOnlyHint: BoolPtr(true),
-		}),
+		mcp.WithToolAnnotation(readOnlyAnnotations(listResourcesTitle)),
 	)
 }
 
 // NewApplyResourceTool creates a new apply_resource tool
 func NewApplyResourceTool() mcp.Tool {
 	return mcp.NewTool(types.ApplyResourceToolName,
+		mcp.WithToolTitle(applyResourceTitle),
 		mcp.WithDescription("Apply (create or update) a Kubernetes resource"),
 		mcp.WithString("resource_type",
 			mcp.Description("Type of resource to apply (clustered or namespaced)"),
@@ -72,11 +73,9 @@ func NewApplyResourceTool() mcp.Tool {
 		mcp.WithObject("manifest",
 			mcp.Description("Resource manifest"),
 			mcp.Required()),
-		mcp.WithToolAnnotation(mcp.ToolAnnotation{
-			Title:          "Apply (create or update) a Kubernetes resource",
-			ReadOnlyHint:   BoolPtr(false),
-			IdempotentHint: BoolPtr(true),
-		}),
+		// Apply can overwrite fields of an existing resource, so it's
+		// destructive. Re-applying the same manifest has no further effect.
+		mcp.WithToolAnnotation(writeAnnotations(applyResourceTitle, true)),
 	)
 }
 

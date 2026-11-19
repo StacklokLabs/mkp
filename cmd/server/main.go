@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"syscall"
@@ -16,6 +17,12 @@ import (
 	"github.com/StacklokLabs/mkp/pkg/k8s"
 	"github.com/StacklokLabs/mkp/pkg/mcp"
 )
+
+// devVersion is reported when no release version is available.
+const devVersion = "dev"
+
+// version is set at build time with -X main.version=<version>. See .ko.yaml.
+var version = devVersion
 
 const (
 	// Transport types
@@ -97,6 +104,7 @@ func main() {
 
 	// Create MCP server config
 	config := &mcp.Config{
+		Version:                  resolveVersion(version, debug.ReadBuildInfo),
 		ServeResources:           *serveResources,
 		ReadWrite:                *readWrite,
 		EnableRateLimiting:       *enableRateLimiting,
@@ -122,6 +130,7 @@ func main() {
 		log.Println("Using streamable-http transport")
 		transportServer, err = srv.CreateStreamableHTTPServer(ctx)
 	case transportSSE:
+		log.Println("WARNING: the SSE transport is deprecated by the MCP specification; use streamable-http instead")
 		log.Println("Using SSE transport")
 		transportServer, err = srv.CreateSSEServer(ctx)
 	default:
@@ -195,6 +204,19 @@ func main() {
 	os.Exit(0)
 }
 
+// resolveVersion returns the server version to report to clients. It prefers
+// the version set by ldflags. Otherwise it falls back to the module version
+// recorded by `go install module@version`, and finally to "dev".
+func resolveVersion(ldflagsVersion string, readBuildInfo func() (*debug.BuildInfo, bool)) string {
+	if ldflagsVersion != "" && ldflagsVersion != devVersion {
+		return ldflagsVersion
+	}
+	if info, ok := readBuildInfo(); ok && info.Main.Version != "" && info.Main.Version != "(devel)" {
+		return strings.TrimPrefix(info.Main.Version, "v")
+	}
+	return devVersion
+}
+
 // getDefaultAddress returns the address to listen on based on MCP_PORT environment variable.
 // If the environment variable is not set, returns ":8080".
 // If set, validates that the port is valid and returns ":<port>".
@@ -223,7 +245,7 @@ func getDefaultAddress() string {
 }
 
 // getDefaultTransport returns the transport to use based on MCP_TRANSPORT environment variable.
-// If the environment variable is not set, returns "sse".
+// If the environment variable is not set, returns "streamable-http".
 // Valid values are "sse" and "streamable-http".
 func getDefaultTransport() string {
 	defaultTransport := transportStreamableHTTP

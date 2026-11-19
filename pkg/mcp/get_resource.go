@@ -90,6 +90,7 @@ func (m *Implementation) HandleGetResource(ctx context.Context, request mcp.Call
 // NewGetResourceTool creates a new get_resource tool
 func NewGetResourceTool() mcp.Tool {
 	return mcp.NewTool(types.GetResourceToolName,
+		mcp.WithToolTitle(getResourceTitle),
 		mcp.WithDescription("Get a Kubernetes resource or its subresource"),
 		mcp.WithString("resource_type",
 			mcp.Description("Type of resource to get (clustered or namespaced)"),
@@ -112,9 +113,6 @@ func NewGetResourceTool() mcp.Tool {
 		mcp.WithObject("parameters",
 			mcp.Description(`Optional parameters for the request. For regular resources: resourceVersion. 
 			For pod logs: container, previous, sinceSeconds, sinceTime, timestamps, limitBytes, tailLines`)),
-		mcp.WithToolAnnotation(mcp.ToolAnnotation{
-			Title:        "Get Kubernetes resource",
-			ReadOnlyHint: BoolPtr(true),
-		}),
+		mcp.WithToolAnnotation(readOnlyAnnotations(getResourceTitle)),
 	)
 }
