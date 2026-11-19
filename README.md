@@ -104,6 +104,18 @@ To run the server with a specific kubeconfig:
 KUBECONFIG=/path/to/kubeconfig task run-with-kubeconfig
 ```
 
+MKP finds its Kubernetes configuration in this order:
+
+1. The `--kubeconfig` flag
+2. The in-cluster service account, when running in a Kubernetes pod
+3. The files listed in the `KUBECONFIG` environment variable
+4. `~/.kube/config`
+
+If none of these exist, MKP still starts and lists its tools, but every tool
+call returns an error until you restart it with a configuration. A
+`--kubeconfig` or `KUBECONFIG` value that points to a missing or invalid file
+is an error at startup.
+
 To run the server on a specific port:
 
 ```bash

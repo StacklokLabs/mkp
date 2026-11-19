@@ -1,10 +1,12 @@
 package main
 
 import (
+	"path/filepath"
 	"runtime/debug"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestResolveVersion(t *testing.T) {
@@ -38,4 +40,35 @@ func TestResolveVersion(t *testing.T) {
 			assert.Equal(t, tt.want, resolveVersion(tt.ldflags, tt.buildInfo))
 		})
 	}
+}
+
+func TestNewK8sClient(t *testing.T) {
+	isolate := func(t *testing.T) {
+		t.Helper()
+		t.Setenv("HOME", t.TempDir())
+		t.Setenv("KUBECONFIG", "")
+		t.Setenv("KUBERNETES_SERVICE_HOST", "")
+		t.Setenv("KUBERNETES_SERVICE_PORT", "")
+	}
+
+	t.Run("no configuration starts without a client", func(t *testing.T) {
+		isolate(t)
+		client, err := newK8sClient("")
+		require.NoError(t, err)
+		assert.Nil(t, client)
+	})
+
+	t.Run("KUBECONFIG naming missing files is an error", func(t *testing.T) {
+		isolate(t)
+		t.Setenv("KUBECONFIG", filepath.Join(t.TempDir(), "missing"))
+		_, err := newK8sClient("")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "KUBECONFIG=")
+	})
+
+	t.Run("explicit missing kubeconfig is an error", func(t *testing.T) {
+		isolate(t)
+		_, err := newK8sClient(filepath.Join(t.TempDir(), "missing"))
+		require.Error(t, err)
+	})
 }

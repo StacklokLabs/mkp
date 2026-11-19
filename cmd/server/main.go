@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -83,13 +84,18 @@ func main() {
 	}()
 
 	// Create Kubernetes client
-	k8sClient, err := k8s.NewClient(*kubeconfig)
+	k8sClient, err := newK8sClient(*kubeconfig)
 	if err != nil {
 		log.Fatalf("Failed to create Kubernetes client: %v", err)
 	}
+	if k8sClient == nil {
+		log.Printf("WARNING: %v. Starting without a cluster: clients can list tools, "+
+			"but every tool call will fail until mkp is restarted with a kubeconfig "+
+			"(--kubeconfig or KUBECONFIG) or run in a cluster", k8s.ErrNoConfig)
+	}
 
 	// Start periodic refresh if interval is set
-	if *kubeconfigRefreshInterval > 0 {
+	if k8sClient != nil && *kubeconfigRefreshInterval > 0 {
 		log.Printf("Starting periodic kubeconfig refresh every %v", *kubeconfigRefreshInterval)
 		if err := k8sClient.StartPeriodicRefresh(*kubeconfigRefreshInterval); err != nil {
 			log.Fatalf("Failed to start periodic kubeconfig refresh: %v", err)
@@ -202,6 +208,22 @@ func main() {
 	log.Println("Server shutdown complete, exiting...")
 	// Ensure we exit the program
 	os.Exit(0)
+}
+
+// newK8sClient creates the Kubernetes client. It returns a nil client and no
+// error when no configuration was specified and none could be found, so the
+// server can still start and list its tools. A configuration that was
+// specified with --kubeconfig or KUBECONFIG but can't be loaded is an error.
+func newK8sClient(kubeconfigPath string) (*k8s.Client, error) {
+	client, err := k8s.NewClient(kubeconfigPath)
+	if errors.Is(err, k8s.ErrNoConfig) {
+		if env := os.Getenv("KUBECONFIG"); env != "" {
+			//nolint:gosec // G706 -- %q escapes newlines, preventing log injection
+			return nil, fmt.Errorf("KUBECONFIG=%q names no readable kubeconfig: %w", env, err)
+		}
+		return nil, nil
+	}
+	return client, err
 }
 
 // resolveVersion returns the server version to report to clients. It prefers
